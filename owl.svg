@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Coruja da Evoluindo</title>
+  <path fill="#bd684f" d="M10 9 24 16a25 25 0 0 1 16 0L54 9l-4 17a22 22 0 1 1-36 0L10 9Z"/>
+  <path fill="#263f58" d="M17 25c4-6 11-7 15-2 4-5 11-4 15 2-1 11-7 19-15 25-8-6-14-14-15-25Z"/>
+  <circle cx="24" cy="29" r="7" fill="#f7f0e4"/><circle cx="40" cy="29" r="7" fill="#f7f0e4"/>
+  <circle cx="25" cy="29" r="3" fill="#263f58"/><circle cx="39" cy="29" r="3" fill="#263f58"/>
+  <path fill="#dca36f" d="m32 32 5 5-5 4-5-4 5-5Z"/>
+  <path fill="none" stroke="#d8b8a1" stroke-linecap="round" stroke-width="3" d="M24 46c5 3 11 3 16 0"/>
+</svg>
