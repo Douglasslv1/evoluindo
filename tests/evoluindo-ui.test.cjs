@@ -29,6 +29,8 @@ test('publica a gestão visual de disciplinas para professor e aluno',()=>{
   assert.match(refresh,/scrollTop=window\.scrollY/);
   assert.match(refresh,/selectedClass===renderedClass/);
   assert.doesNotMatch(refresh,/loading\(\)/);
+  assert.match(refresh,/explicitNoClass/);
+  assert.match(refresh,/Nenhuma turma selecionada/);
   assert.match(html,/championship-reports\.js/);
   assert.match(reports,/championship-report/);
   assert.match(reports,/Perguntas com mais erros/);
