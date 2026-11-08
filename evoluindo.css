@@ -39,3 +39,131 @@ dialog{background:#fbf8f2;color:var(--text);border-color:#c9bbaa}.close{color:#5
 @media(max-width:900px){.subject-options{grid-template-columns:repeat(2,minmax(0,1fr))}.simulation-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.subject-heading{align-items:flex-start;flex-direction:column}.subject-heading .primary{width:100%}.subject-options,.bank-subject-grid,.simulation-grid,.championship-grid,.form-columns{grid-template-columns:1fr}.evoluindo-subjects,.student-subjects,.student-simulations,.student-championships{padding:20px}.bank-list article{align-items:flex-start;flex-direction:column}.question-list article{grid-template-columns:auto 1fr}.question-list article>div:last-child{grid-column:2}.answer-options{padding-inline:12px}.answer-options label{grid-template-columns:auto 24px 1fr}.podium span{min-width:0;flex:1}}
 @media(prefers-color-scheme:dark){:root{color-scheme:light}}
+
+/* Identidade das aulas: remove a antiga paleta verde do InformBasic. */
+.preview-banner{
+  background:var(--evo-blue);
+  color:#fff;
+}
+.learning-stamp{
+  background:radial-gradient(ellipse at top right,#6a89a766,transparent 70%),var(--evo-navy);
+  border-color:#6a89a7;
+  color:#fff;
+}
+.learning-stamp strong,
+.learning-stamp strong small,
+.learning-stamp>span,
+.learning-stamp p{
+  color:#fff;
+}
+.learning-goals ul{
+  color:var(--evo-navy);
+}
+.learning-goals li::marker{
+  color:var(--evo-blue);
+}
+.study-card,
+.study-card.break-card{
+  background:linear-gradient(140deg,#315d73,var(--evo-navy));
+  border-color:#6a89a7;
+  color:#fff;
+}
+.study-card:hover{
+  border-color:#a9cad7;
+}
+.study-card p,
+.study-card .card-top,
+.study-card .card-bottom,
+.study-card .card-bottom span{
+  color:#fff;
+}
+.study-card .card-bottom span{
+  border-color:#a9cad7;
+}
+.reader-path button,
+.practice-rail,
+.study-lab,
+.study-check,
+.history-scene,
+.component-explanation,
+.cpu-screen,
+.device-challenge,
+.if-result,
+.break-timer{
+  background:var(--evo-navy);
+  border-color:#6a89a7;
+  color:#fff;
+}
+.reader-path button,
+.reader-path small,
+.practice-rail p,
+.practice-rail ol,
+.practice-rail li,
+.study-lab p,
+.study-lab .muted,
+.study-check p,
+.history-scene p,
+.component-explanation p,
+.cpu-screen p,
+.device-challenge p,
+.if-result small,
+.break-timer span{
+  color:#fff;
+}
+.reader-path button.selected{
+  background:var(--evo-blue)!important;
+  border-color:#a9cad7!important;
+  color:#fff!important;
+}
+.practice-rail li::marker,
+.history-scene>span,
+.history-scene small,
+.component-explanation h3,
+.cpu-screen strong,
+.binary-total strong,
+.budget-result strong,
+.if-result strong,
+.break-timer strong{
+  color:#fff;
+}
+.worked-example,
+.insight,
+.simulation-status,
+.binary-total,
+.budget-result{
+  background:#e3eff3;
+  border-color:var(--evo-blue);
+  color:var(--evo-navy);
+}
+.worked-example p,
+.insight,
+.binary-total span,
+.binary-total small,
+.budget-result small{
+  color:var(--evo-navy);
+}
+.memory-unit,
+.binary-bits button,
+.cpu-steps button,
+.component-tiles{
+  background:#edf4f6;
+  border-color:#8baebd;
+  color:var(--evo-navy);
+}
+.memory-unit small,
+.binary-bits small,
+.cpu-steps small,
+.component-tiles span{
+  color:#476b7b;
+}
+.memory-unit.lit{
+  background:#d9e8ee;
+  border-color:var(--evo-blue);
+  color:var(--evo-blue);
+  box-shadow:0 0 35px #2f718d18;
+}
+.memory-arrow,
+.study-sources a,
+.reader-navigation>span{
+  color:var(--evo-blue);
+}
