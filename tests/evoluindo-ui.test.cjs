@@ -1,7 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 
 test('publica a gestão visual de disciplinas para professor e aluno',()=>{
-  const html=fs.readFileSync('index.html','utf8'),source=fs.readFileSync('evoluindo-admin.js','utf8'),monitor=fs.readFileSync('duel-monitor.js','utf8'),refresh=fs.readFileSync('smooth-refresh.js','utf8'),reports=fs.readFileSync('championship-reports.js','utf8'),controls=fs.readFileSync('disqualification-controls.js','utf8'),brand=fs.readFileSync('brand.js','utf8'),css=fs.readFileSync('evoluindo.css','utf8');
+  const html=fs.readFileSync('index.html','utf8'),source=fs.readFileSync('evoluindo-admin.js','utf8'),monitor=fs.readFileSync('duel-monitor.js','utf8'),refresh=fs.readFileSync('smooth-refresh.js','utf8'),reports=fs.readFileSync('championship-reports.js','utf8'),controls=fs.readFileSync('disqualification-controls.js','utf8'),questionImport=fs.readFileSync('question-import.js','utf8'),brand=fs.readFileSync('brand.js','utf8'),css=fs.readFileSync('evoluindo.css','utf8');
   assert.match(html,/evoluindo-admin\.js/);
   assert.match(source,/create-subject/);
   assert.match(source,/set-class-subject/);
@@ -38,6 +38,10 @@ test('publica a gestão visual de disciplinas para professor e aluno',()=>{
   assert.match(html,/disqualification-controls\.js/);
   assert.match(controls,/disqualify-participant/);
   assert.match(controls,/Motivo da desclassifica/);
+  assert.match(html,/question-import\.js/);
+  assert.match(questionImport,/import-questions/);
+  assert.match(questionImport,/export-question-bank/);
+  assert.match(questionImport,/Baixar modelo JSON/);
   assert.match(css,/\.subject-options/);
   assert.match(css,/@media\(max-width:600px\)/);
   assert.match(brand,/textContent!==label/);
