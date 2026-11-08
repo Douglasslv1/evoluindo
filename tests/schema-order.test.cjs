@@ -9,4 +9,5 @@ test('schema de instalação limpa cria tabelas referenciadas antes das dependen
   assert.ok(students<attempts);
   assert.ok(students<championships);
   assert.match(sql,/add column if not exists duration_seconds/);
+  assert.match(sql,/add column if not exists system_key/);
 });

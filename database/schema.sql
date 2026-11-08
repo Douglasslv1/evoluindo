@@ -27,9 +27,11 @@ create table if not exists public.interface_subjects (
   id uuid primary key,
   name text not null,
   description text not null default '',
+  system_key text unique,
   active boolean not null default true,
   created_at timestamptz not null default now()
 );
+alter table public.interface_subjects add column if not exists system_key text unique;
 create unique index if not exists interface_subjects_name_ci on public.interface_subjects(lower(name));
 create table if not exists public.interface_class_subjects (
   id uuid primary key,

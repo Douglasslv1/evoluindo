@@ -18,6 +18,8 @@ test('publica a gestão visual de disciplinas para professor e aluno',()=>{
   assert.match(source,/duel-start/);
   assert.match(source,/duel-submit/);
   assert.match(source,/duel-bracket/);
+  assert.match(source,/coreCourseContext/);
+  assert.match(source,/Informática Básica não está vinculada/);
   assert.match(html,/duel-monitor\.js/);
   assert.match(monitor,/deadline_at/);
   assert.match(monitor,/visibilitychange/);

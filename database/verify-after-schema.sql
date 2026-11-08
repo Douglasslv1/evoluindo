@@ -21,3 +21,9 @@ order by tablename;
 select id, applied_at
 from public.interface_schema_migrations
 order by applied_at;
+
+select 'interface_subjects.system_key' as missing_column
+where not exists (
+  select 1 from information_schema.columns
+  where table_schema='public' and table_name='interface_subjects' and column_name='system_key'
+);
