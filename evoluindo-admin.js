@@ -75,10 +75,11 @@
       event.preventDefault();event.submitter.disabled=true;
       try{
         const values=Object.fromEntries(new FormData(event.currentTarget));
-        const result=await api('create-subject',values);
-        if(selectedClass)await api('set-class-subject',{classId:selectedClass,subjectId:result.subject.id,assigned:true});
+        const result=await api('create-subject',{...values,classId:selectedClass||undefined});
+        teacher.subjects=[...(teacher.subjects||[]),result.subject];
+        if(result.classSubject)teacher.classSubjects=[...(teacher.classSubjects||[]),result.classSubject];
         document.getElementById('modal').close();
-        await teacherHome();toast(selectedClass?'Disciplina cadastrada e adicionada à turma.':'Disciplina cadastrada.');
+        teacherPage();toast(selectedClass?'Disciplina cadastrada e adicionada à turma.':'Disciplina cadastrada.');
       }catch(error){document.getElementById('subject-error').textContent=error.message;event.submitter.disabled=false}
     };
   }
