@@ -167,3 +167,179 @@ dialog{background:#fbf8f2;color:var(--text);border-color:#c9bbaa}.close{color:#5
 .reader-navigation>span{
   color:var(--evo-blue);
 }
+
+/* Normalização dos componentes legados que ainda traziam verde ou baixo contraste. */
+.cable-tray,
+.discussion,
+.feedback,
+.workspace,
+.task-card,
+.release-card,
+.delivery-list article,
+.slide-builder>article,
+.order-item,
+.option,
+.file,
+.folder,
+.formula-bar,
+.mini-flow>span,
+.passport-card,
+.submitted-text,
+.explorer-top,
+.sheet-top{
+  background:var(--evo-paper);
+  border-color:var(--line);
+  color:var(--text);
+}
+.task-card.bonus{
+  background:#f1e5d5;
+  border-color:#cdbb9f;
+}
+.task-card p,
+.release-card p,
+.delivery-list p,
+.discussion p,
+.feedback p,
+.file small,
+.folder small,
+.submitted-text{
+  color:#566970;
+}
+.cable,
+.icon-btn,
+.component-tiles .ghost,
+.port,
+.port:hover,
+.port.occupied,
+.computer-back,
+.io-panel{
+  background:var(--evo-navy);
+  border-color:#6a89a7;
+  color:#fff;
+}
+.cable *,
+.icon-btn *,
+.component-tiles .ghost *,
+.port *,
+.computer-back *,
+.io-panel *{
+  color:#fff;
+}
+.explorer-top,
+.sheet-top{
+  background:var(--evo-blue);
+  border-color:#6a89a7;
+  color:#fff;
+}
+.explorer-top *,
+.sheet-top *{
+  color:#fff;
+}
+.sheet tbody tr:first-child td{
+  background:#d9e8ee;
+  color:var(--evo-navy);
+}
+.feedback{
+  border-left-color:var(--evo-blue);
+}
+.feedback,
+.feedback *{
+  color:var(--evo-navy)!important;
+}
+.xp-tag{
+  background:var(--evo-blue);
+  border-color:var(--evo-blue);
+  color:#fff;
+}
+.xp-tag small{
+  color:#fff;
+}
+.rank{
+  background:#d9e8ee;
+  border-color:#8baebd;
+  color:var(--evo-navy);
+}
+.side-stat>span,
+.side-stat>strong small,
+.lesson-icon,
+.slide-builder h3,
+.preview-slide h2,
+.slide-illustration,
+.schema-grid>b,
+.formula-bar>span,
+.passport-card>strong,
+.delivery-list strong,
+.class-code b,
+.component-tiles span,
+.port>b,
+.order-item>span,
+.access-code,
+.study-sources a,
+.history-scene small{
+  color:var(--evo-blue);
+}
+.report-preview{
+  background:#e3eff3;
+  border-left-color:var(--evo-blue);
+  color:var(--evo-navy);
+}
+.report-preview p,
+.report-preview small{
+  color:#476270;
+}
+.skip,
+#toast{
+  background:var(--evo-blue);
+  color:#fff;
+}
+.primary,
+.duel-action{
+  color:#fff;
+}
+.primary *,
+.duel-action *{
+  color:#fff;
+}
+.reading-copy>p,
+.connection-status,
+.case-label,
+.cable small,
+.cable>b,
+.option span,
+.path,
+.preview-slide figcaption,
+.roster td small,
+.teacher-metrics span,
+.task-card .task-state,
+.schedule span,
+.mini-flow i,
+.discussion>span,
+.summary-accent,
+summary:before,
+summary span,
+summary b{
+  color:var(--evo-blue);
+}
+.reading-copy>p,
+.lesson-card p,
+.card-top,
+.card-bottom,
+.connection-status{
+  color:#51666f;
+}
+.callout,
+.callout p{
+  color:#435f69;
+}
+.close{
+  color:var(--evo-navy);
+}
+.empty,
+.login-note,
+.login-orbit>span{
+  color:#536b74;
+}
+.primary:hover{
+  background:#234f64;
+  color:#fff;
+}
