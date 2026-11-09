@@ -33,8 +33,7 @@
     const scrollTop=window.scrollY,active=document.activeElement,focusId=active?.id||null;
     document.documentElement.classList.add('background-refresh');
     try{
-      teacher=await api('teacher-state');
-      report=await api('class-report',{classId:selectedClass});
+      [teacher,report]=await Promise.all([api('teacher-state'),api('class-report',{classId:selectedClass})]);
       teacherPage();
       renderedClass=selectedClass;
       requestAnimationFrame(()=>{

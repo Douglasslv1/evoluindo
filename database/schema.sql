@@ -126,9 +126,19 @@ create table if not exists public.interface_championship_participants (
   joined_at timestamptz not null default now(),
   unique(championship_id,student_id)
 );
+alter table public.interface_championships add column if not exists leveling_question_count integer not null default 10 check (leveling_question_count between 1 and 50);
+alter table public.interface_championships add column if not exists leveling_questions jsonb not null default '[]';
+alter table public.interface_championships drop constraint if exists interface_championships_status_check;
+alter table public.interface_championships add constraint interface_championships_status_check check (status in ('registration','leveling','active','finished'));
 alter table public.interface_championship_participants add column if not exists disqualified boolean not null default false;
 alter table public.interface_championship_participants add column if not exists disqualification_reason text;
 alter table public.interface_championship_participants add column if not exists disqualified_at timestamptz;
+alter table public.interface_championship_participants add column if not exists leveling_status text not null default 'pending' check (leveling_status in ('pending','started','completed'));
+alter table public.interface_championship_participants add column if not exists leveling_score integer;
+alter table public.interface_championship_participants add column if not exists leveling_time integer;
+alter table public.interface_championship_participants add column if not exists leveling_answers jsonb not null default '[]';
+alter table public.interface_championship_participants add column if not exists leveling_started_at timestamptz;
+alter table public.interface_championship_participants add column if not exists leveling_completed_at timestamptz;
 create table if not exists public.interface_duel_matches (
   id uuid primary key,
   championship_id uuid not null references public.interface_championships(id) on delete cascade,
