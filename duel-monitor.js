@@ -80,16 +80,17 @@
   }
   async function refreshLiveTrees(){
     if(liveBusy||document.hidden||typeof state==='undefined')return;
-    const teacherTargets=[...document.querySelectorAll('[data-live-bracket]:not([data-live-done])')],studentTargets=[...document.querySelectorAll('[data-student-bracket]:not([data-live-done])')],targets=[...teacherTargets,...studentTargets];if(!targets.length){if(liveTimer){clearInterval(liveTimer);liveTimer=null}return}
+    const teacherTargets=[...document.querySelectorAll('.championship-disclosure[open] [data-live-bracket]:not([data-live-done])')],studentTargets=[...document.querySelectorAll('[data-student-bracket]:not([data-live-done])')],targets=[...teacherTargets,...studentTargets];if(!targets.length){if(liveTimer){clearInterval(liveTimer);liveTimer=null}return}
     liveBusy=true;
     try{await Promise.all(targets.map(async target=>{const isTeacher=target.hasAttribute('data-live-bracket'),id=isTeacher?target.dataset.liveBracket:target.dataset.studentBracket;try{renderLiveTree(target,await originalApi(isTeacher?'championship-live':'championship-watch',{id}),isTeacher)}catch(error){target.innerHTML=`<span class="muted small">${esc(error.message)}</span>`}}))}finally{liveBusy=false}
   }
   function scheduleLiveTrees(){
-    const hasLive=document.querySelector('[data-live-bracket]:not([data-live-done]),[data-student-bracket]:not([data-live-done])');
+    const hasLive=document.querySelector('.championship-disclosure[open] [data-live-bracket]:not([data-live-done]),[data-student-bracket]:not([data-live-done])');
     if(hasLive&&!liveTimer){refreshLiveTrees();liveTimer=setInterval(refreshLiveTrees,3000)}
     if(!hasLive&&liveTimer){clearInterval(liveTimer);liveTimer=null}
   }
   document.addEventListener('click',async event=>{const button=event.target.closest('[data-live-knockout]');if(!button)return;if(!confirm('Formar as chaves usando o ranking do nivelamento?'))return;button.disabled=true;try{await originalApi('start-knockout',{id:button.dataset.liveKnockout});await refreshLiveTrees();if(typeof toast==='function')toast('Mata-mata formado pelo desempenho do nivelamento.')}catch(error){if(typeof toast==='function')toast(error.message);button.disabled=false}});
+  document.addEventListener('toggle',event=>{if(event.target.matches?.('.championship-disclosure'))scheduleLiveTrees()},true);
 
   new MutationObserver(()=>{attachMonitor();focusIndicators();championshipDurationField();scheduleLiveTrees()}).observe(document.body,{childList:true,subtree:true});
   scheduleLiveTrees();
