@@ -34,3 +34,16 @@ test('nivelamento ordena a chave e concede vagas automáticas aos melhores resul
     assert.equal(matches.filter(match=>match.round===1).length,4);assert.equal(byes.length,2);assert.deepEqual(new Set(byes.map(match=>match.winner_id)),new Set([sessions[0].id,sessions[1].id]));
   }finally{if(path.dirname(path.resolve(directory))!==base)throw Error('Diretório de teste inválido.');fs.rmSync(directory,{recursive:true,force:true})}
 });
+
+test('modo demonstração cria alunos fictícios e avança cada etapa até o campeão',async()=>{
+  const base=path.resolve(__dirname,'..','test-output');fs.mkdirSync(base,{recursive:true});const directory=fs.mkdtempSync(path.join(base,'evoluindo-demo-')),file=path.join(directory,'data.json');
+  try{
+    const service=createService({file}),login=await service.execute('setup',{password:'senha-de-teste-forte'}),teacher=await service.session(login.token),classroom=(await service.execute('create-class',{name:'Turma demonstração'},teacher)).classroom,subject=(await service.execute('create-subject',{name:'Disciplina demonstração',classId:classroom.id},teacher)).subject,bank=(await service.execute('create-question-bank',{subjectId:subject.id,name:'Banco demonstração'},teacher)).bank;
+    for(let index=0;index<4;index++)await service.execute('save-question',{bankId:bank.id,statement:`Pergunta demo ${index+1}?`,options:['Errada','Correta'],correct:1},teacher);
+    const championship=(await service.execute('create-championship',{classId:classroom.id,subjectId:subject.id,bankId:bank.id,title:'Copa demonstrativa',levelingQuestionCount:4,questionCount:2,duelXp:10,winnerBonus:5},teacher)).championship,seed=await service.execute('seed-demo-students',{id:championship.id,count:8},teacher);
+    assert.equal(seed.students.length,8);assert.ok(seed.students.every(student=>student.pin==='123456'));
+    await service.execute('start-championship',{id:championship.id},teacher);await service.execute('advance-demo-championship',{id:championship.id},teacher);await service.execute('start-knockout',{id:championship.id},teacher);
+    for(let guard=0;guard<5;guard++){const current=(await service.store.get('championships',{id:championship.id}))[0];if(current.status==='finished')break;await service.execute('advance-demo-championship',{id:championship.id},teacher)}
+    const finished=(await service.store.get('championships',{id:championship.id}))[0];assert.equal(finished.status,'finished');assert.ok(finished.champion_id&&finished.runner_up_id&&finished.third_id);
+  }finally{if(path.dirname(path.resolve(directory))!==base)throw Error('Diretório de teste inválido.');fs.rmSync(directory,{recursive:true,force:true})}
+});
