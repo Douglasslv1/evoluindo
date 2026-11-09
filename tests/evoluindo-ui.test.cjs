@@ -19,12 +19,15 @@ test('publica a gestão visual de disciplinas para professor e aluno',()=>{
   assert.match(source,/duel-submit/);
   assert.match(source,/duel-bracket/);
   assert.match(source,/coreCourseContext/);
-  assert.match(source,/Informática Básica não está vinculada/);
+  assert.match(source,/heading\?\.remove\(\);grid\.remove\(\)/);
+  assert.doesNotMatch(source,/Informática Básica não está vinculada/);
   assert.match(html,/duel-monitor\.js/);
   assert.match(monitor,/deadline_at/);
   assert.match(monitor,/visibilitychange/);
   assert.match(monitor,/duel-focus/);
   assert.match(monitor,/durationSeconds/);
+  assert.match(monitor,/championship-watch/);
+  assert.match(monitor,/bracket-board/);
   assert.match(html,/smooth-refresh\.js/);
   assert.match(refresh,/scrollTop=window\.scrollY/);
   assert.match(refresh,/selectedClass===renderedClass/);
