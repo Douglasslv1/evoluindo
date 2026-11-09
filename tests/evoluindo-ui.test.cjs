@@ -28,6 +28,9 @@ test('publica a gestão visual de disciplinas para professor e aluno',()=>{
   assert.match(monitor,/durationSeconds/);
   assert.match(monitor,/championship-watch/);
   assert.match(monitor,/bracket-board/);
+  assert.match(monitor,/bracketSize/);
+  assert.match(monitor,/thirdMatch/);
+  assert.match(monitor,/live-podium/);
   assert.match(html,/smooth-refresh\.js/);
   assert.match(refresh,/scrollTop=window\.scrollY/);
   assert.match(refresh,/selectedClass===renderedClass/);
