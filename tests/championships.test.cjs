@@ -64,6 +64,43 @@ test('respostas enviadas depois do prazo e da tolerância não pontuam no nivela
   }finally{if(path.dirname(path.resolve(directory))!==base)throw Error('Diretório de teste inválido.');fs.rmSync(directory,{recursive:true,force:true})}
 });
 
+test('duelos travados se resolvem sozinhos e o professor pode encerrar por W.O.',async()=>{
+  const base=path.resolve(__dirname,'..','test-output');fs.mkdirSync(base,{recursive:true});const directory=fs.mkdtempSync(path.join(base,'evoluindo-settle-')),file=path.join(directory,'data.json');
+  try{
+    const service=createService({file}),login=await service.execute('setup',{password:'senha-de-teste-forte'}),teacher=await service.session(login.token),classroom=(await service.execute('create-class',{name:'Turma W.O.'},teacher)).classroom,subject=(await service.execute('create-subject',{name:'Disciplina W.O.',classId:classroom.id},teacher)).subject,bank=(await service.execute('create-question-bank',{subjectId:subject.id,name:'Banco W.O.'},teacher)).bank;
+    for(let index=0;index<2;index++)await service.execute('save-question',{bankId:bank.id,statement:`Pergunta W.O. ${index+1}?`,options:['Errada','Correta'],correct:1},teacher);
+    const championship=(await service.execute('create-championship',{classId:classroom.id,subjectId:subject.id,bankId:bank.id,title:'Copa W.O.',levelingQuestionCount:2,questionCount:2,duelXp:10,winnerBonus:5,durationSeconds:60},teacher)).championship,sessions=new Map();
+    for(let index=0;index<4;index++){const registration=await service.execute('register',{classCode:classroom.code,name:`Jogador ${index+1}`,pin:`99887${index}`}),student=await service.session(registration.token);sessions.set(student.id,student);await service.execute('championship-join',{id:championship.id},student)}
+    await service.execute('start-championship',{id:championship.id},teacher);for(const student of sessions.values()){await service.execute('leveling-start',{id:championship.id},student);await service.execute('leveling-submit',{id:championship.id,answers:[1,1]},student)}
+    await service.execute('start-knockout',{id:championship.id},teacher);
+    const [raced,abandoned]=(await service.store.get('duel_matches',{championship_id:championship.id})).filter(match=>match.round===1).sort((a,b)=>a.slot-b.slot),ago=ms=>new Date(Date.now()-ms).toISOString(),xpFor=async matchId=>(await service.store.get('xp_events',{source_id:matchId}));
+    // Corrida: as duas tentativas foram concluídas, mas ninguém resolveu o confronto.
+    for(const id of [raced.player1_id,raced.player2_id])await service.execute('duel-start',{matchId:raced.id},sessions.get(id));
+    for(const attempt of await service.store.get('duel_attempts',{match_id:raced.id}))await service.store.update('duel_attempts',attempt.id,{answers:[1,1],score:attempt.student_id===raced.player1_id?2:1,elapsed_ms:5000,status:'completed',completed_at:new Date().toISOString()});
+    let live=await service.execute('championship-live',{id:championship.id},teacher);assert.equal(live.matches.find(match=>match.id===raced.id).status,'finished');assert.equal(live.matches.find(match=>match.id===raced.id).winner_id,raced.player1_id);
+    await service.execute('championship-live',{id:championship.id},teacher);assert.equal((await xpFor(raced.id)).length,2);
+    // Abandono: um aluno enviou; o outro abriu o duelo e sumiu depois do prazo.
+    await service.execute('duel-start',{matchId:abandoned.id},sessions.get(abandoned.player1_id));await service.execute('duel-start',{matchId:abandoned.id},sessions.get(abandoned.player2_id));
+    const submitted=await service.execute('duel-submit',{matchId:abandoned.id,answers:[0,0]},sessions.get(abandoned.player1_id));assert.equal(submitted.waiting,true);
+    live=await service.execute('championship-live',{id:championship.id},teacher);assert.deepEqual([live.matches.find(match=>match.id===abandoned.id).player1_state,live.matches.find(match=>match.id===abandoned.id).player2_state],['completed','started']);
+    await service.store.update('duel_attempts',(await service.store.get('duel_attempts',{match_id:abandoned.id})).find(item=>item.student_id===abandoned.player2_id).id,{started_at:ago(120000)});
+    live=await service.execute('championship-live',{id:championship.id},teacher);assert.equal(live.matches.find(match=>match.id===abandoned.id).status,'finished');
+    // Final: ninguém iniciou. Aluno não pode dar W.O.; professor encerra e o XP vai só para o vencedor.
+    const final=live.matches.find(match=>match.round===2&&match.status==='open');assert.ok(final);assert.deepEqual([final.player1_state,final.player2_state],['pending','pending']);
+    await assert.rejects(()=>service.execute('forfeit-duel',{matchId:final.id,winnerId:final.player1_id},sessions.get(final.player1_id)),{status:401});
+    await assert.rejects(()=>service.execute('forfeit-duel',{matchId:final.id,winnerId:raced.id},teacher),{status:400});
+    const forfeited=await service.execute('forfeit-duel',{matchId:final.id,winnerId:final.player2_id},teacher);assert.equal(forfeited.match.winner_id,final.player2_id);
+    const finalXp=await xpFor(final.id);assert.equal(finalXp.length,1);assert.equal(finalXp[0].student_id,final.player2_id);assert.equal(finalXp[0].xp,15);
+    await assert.rejects(()=>service.execute('forfeit-duel',{matchId:final.id,winnerId:final.player1_id},teacher),{status:409});
+  }finally{if(path.dirname(path.resolve(directory))!==base)throw Error('Diretório de teste inválido.');fs.rmSync(directory,{recursive:true,force:true})}
+});
+
+test('remoção sem filtro é bloqueada no armazenamento',async()=>{
+  const base=path.resolve(__dirname,'..','test-output');fs.mkdirSync(base,{recursive:true});const directory=fs.mkdtempSync(path.join(base,'evoluindo-remove-'));
+  try{const service=createService({file:path.join(directory,'data.json')});await service.execute('setup',{password:'senha-de-teste-forte'});await assert.rejects(()=>service.store.remove('settings'),/sem filtro/);assert.equal((await service.store.get('settings')).length>0,true)}
+  finally{if(path.dirname(path.resolve(directory))!==base)throw Error('Diretório de teste inválido.');fs.rmSync(directory,{recursive:true,force:true})}
+});
+
 test('modo demonstração cria alunos fictícios e avança cada etapa até o campeão',async()=>{
   const base=path.resolve(__dirname,'..','test-output');fs.mkdirSync(base,{recursive:true});const directory=fs.mkdtempSync(path.join(base,'evoluindo-demo-')),file=path.join(directory,'data.json');
   try{
