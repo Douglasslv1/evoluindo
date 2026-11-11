@@ -1,76 +1,1058 @@
 'use strict';
-const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-const e=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let state=null,status=null,teacher=null,report=null,selectedClass='',view='map',activeLesson=null,activeTask=null,guide=true,selectedCable=null,selectedFile=null,draft={},toastTimer,refreshTimer,busy=false;
-const icons=['⌘','▣','▤','Σ','ƒ','⟳','▧','◈','▥','⚑'];
-async function api(action,data={}){const res=await fetch('/api/index',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({action,...data})});let json;try{json=await res.json()}catch{throw Error('Resposta indisponível. Tente novamente em instantes.')}if(!res.ok){const error=Error(json.error||'Não foi possível concluir.');error.status=res.status;throw error;}return json;}
-function toast(text){$('#toast').textContent=text;$('#toast').classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),5500)}
-function modal(html){$('#modal-content').innerHTML=html;if(!$('#modal').open)$('#modal').showModal()}$('.close').onclick=()=>$('#modal').close();$('#modal').onclick=ev=>{if(ev.target===$('#modal'))$('#modal').close()};
-function format(n){return Number(n).toLocaleString('pt-BR')}function xp(){return (state?.progress||[]).reduce((n,r)=>n+(r.status==='approved'?r.xp:0),0)}function progressFor(id){return state?.progress?.find(r=>r.task_id===id)}function badgeName(){return ['Explorador','Aprendiz digital','Construtor','Técnico em ação','Especialista da jornada'][Math.min(4,Math.floor(xp()/900))]}
+const $ = s => document.querySelector(s),
+  $$ = s => [...document.querySelectorAll(s)];
+const e = v =>
+  String(v ?? '').replace(
+    /[&<>"']/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
+  );
+let state = null,
+  status = null,
+  teacher = null,
+  report = null,
+  selectedClass = '',
+  view = 'map',
+  activeLesson = null,
+  activeTask = null,
+  guide = true,
+  selectedCable = null,
+  selectedFile = null,
+  draft = {},
+  toastTimer,
+  refreshTimer,
+  busy = false;
+const icons = ['⌘', '▣', '▤', 'Σ', 'ƒ', '⟳', '▧', '◈', '▥', '⚑'];
+async function api(action, data = {}) {
+  const res = await fetch('/api/index', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ action, ...data })
+  });
+  let json;
+  try {
+    json = await res.json();
+  } catch {
+    throw Error('Resposta indisponível. Tente novamente em instantes.');
+  }
+  if (!res.ok) {
+    const error = Error(json.error || 'Não foi possível concluir.');
+    error.status = res.status;
+    throw error;
+  }
+  return json;
+}
+function toast(text) {
+  $('#toast').textContent = text;
+  $('#toast').classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $('#toast').classList.remove('visible'), 5500);
+}
+function modal(html) {
+  $('#modal-content').innerHTML = html;
+  if (!$('#modal').open) $('#modal').showModal();
+}
+$('.close').onclick = () => $('#modal').close();
+$('#modal').onclick = ev => {
+  if (ev.target === $('#modal')) $('#modal').close();
+};
+function format(n) {
+  return Number(n).toLocaleString('pt-BR');
+}
+function xp() {
+  return (state?.progress || []).reduce((n, r) => n + (r.status === 'approved' ? r.xp : 0), 0);
+}
+function progressFor(id) {
+  return state?.progress?.find(r => r.task_id === id);
+}
+function badgeName() {
+  return ['Explorador', 'Aprendiz digital', 'Construtor', 'Técnico em ação', 'Especialista da jornada'][
+    Math.min(4, Math.floor(xp() / 900))
+  ];
+}
 // Número exibido da aula: aulas fundamentais usam o número original; aulas novas, a posição na disciplina.
-function lessonNumber(lesson){return lesson?.legacy_lesson_id??lesson?.position??lesson?.id}
-function lessonProgress(lesson){const id=typeof lesson==='object'?lesson.legacy_lesson_id:lesson;return id?(state?.progress||[]).filter(r=>r.task_id.startsWith('l'+id+'-')&&r.status==='approved').length:0}function loading(){return '<div class="empty"><span class="loading-dot"></span>Carregando o laboratório…</div>'}
-function shell(){const isTeacher=state?.role==='teacher';$('#app').innerHTML=`<aside><a href="#" class="brand" data-route="home"><span class="logo-icon">i_</span>interface<span class="brand-dot">●</span></a><div class="course-label">INFORMÁTICA PARA TODOS<strong>Laboratório digital</strong></div><div class="nav-label">${isTeacher?'SALA DE CONTROLE':'SUA JORNADA'}</div><nav><button class="nav-item active" data-route="home"><span>◈</span>${isTeacher?'Painel das turmas':'Mapa do curso'}</button>${!isTeacher?'<button class="nav-item" data-route="passport"><span>▰</span>Meu passaporte</button>':''}<button class="nav-item" id="help"><span>?</span>Como funciona</button></nav><div id="sidebar-status"></div><div class="sidebar-bottom"><button class="ghost full" id="logout">Sair da conta ↗</button><small>APRENDER É CONSTRUIR.<br>UMA MISSÃO DE CADA VEZ.</small></div></aside><main><header><span><i class="live"></i>${isTeacher?'PAINEL DO PROFESSOR':'LABORATÓRIO DIGITAL'}<em>/</em><span id="header-class"></span></span><div class="header-actions"><button class="ghost" id="fullscreen">⛶ Apresentar</button><button id="account" class="avatar" aria-label="Abrir meu acesso">${isTeacher?'P':e(state.student.name.slice(0,1).toUpperCase())}</button></div></header><div id="screen" tabindex="-1"></div><footer><span>INTERFACE / INFORMÁTICA BÁSICA</span><span>10 aulas. Muitas maneiras de aprender.</span></footer></main>`;$('#logout').onclick=async()=>{if(busy)return toast('Aguarde a confirmação da entrega.');try{await api('logout');clearInterval(refreshTimer);if(typeof stopStudyTimer==='function')stopStudyTimer();state=null;activeLesson=null;activeTask=null;login('student')}catch(err){toast(err.message)}};$('#help').onclick=help;$('#fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen()}catch{toast('Use F11 no navegador para apresentar.')}};$('#account').onclick=()=>isTeacher?help():passport();updateSidebar();}
-function updateSidebar(){if(!state)return;if(state.role==='teacher'){$('#sidebar-status').innerHTML='<div class="side-stat"><span>ACOMPANHAMENTO REAL</span><p>Libere aulas, acompanhe entregas e devolva orientações.</p></div>';$('#header-class').textContent='SUAS TURMAS';return}$('#header-class').textContent=state.classroom.name;$('#sidebar-status').innerHTML=`<div class="side-stat"><span>${e(badgeName().toUpperCase())}</span><strong>${format(xp())}<small> XP</small></strong><div class="track"><i style="width:${xp()>=3600?Math.min(100,(xp()-3600)/8):xp()%900/9}%"></i></div><p>${xp()>=3600?Math.max(0,4400-xp()):900-xp()%900} XP ${xp()>=3600?'para completar a jornada':'até o próximo marco'}</p></div><div class="side-profile"><span class="avatar">${e(state.student.name.slice(0,1).toUpperCase())}</span><div><b>${e(state.student.name)}</b><small>${e(state.classroom.name)}</small></div></div>`;}
-function help(){modal(`<div class="eyebrow">COMO FUNCIONA</div><h2>Seu ritmo, uma turma.</h2><div class="help-list"><p><b>1. O professor abre a aula.</b><br>Somente aulas liberadas podem ser acessadas e receber entregas.</p><p><b>2. Você aprende e experimenta.</b><br>Escolha o modo guiado para ver dicas. As missões essenciais são as mesmas para todos.</p><p><b>3. A prática vira conquista.</b><br>Há novas tentativas sem perda de pontos. Cada missão aprovada dá XP uma única vez.</p><p><b>4. Você pode ir além.</b><br>Missões bônus são opcionais. Respostas abertas recebem devolutiva do professor antes do XP.</p></div><div class="callout">XP acompanha a jornada. A nota da prova oficial é um registro separado.</div><p class="muted">Use seu código pessoal e PIN para voltar em outro dispositivo. Saia da conta em computadores compartilhados.</p>`)}
-function login(tab='student'){clearInterval(refreshTimer);if(typeof stopStudyTimer==='function')stopStudyTimer();$('#app').innerHTML=`<div class="login-layout"><section class="login-story"><a class="brand" href="#"><span class="logo-icon">i_</span>interface<span class="brand-dot">●</span></a><div class="eyebrow">INFORMÁTICA PARA TODOS</div><h1>Seu próximo<br>nível começa<br><span>na prática.</span></h1><p>Explore o computador. Organize seus projetos. Transforme dados em decisões.</p><div class="login-orbit"><div class="login-chip">i_<small>LABORATÓRIO DIGITAL</small></div><span>EXPLORAR</span><span>CONSTRUIR</span><span>EVOLUIR</span></div><div class="login-facts"><b>10 <small>AULAS</small></b><b>40 <small>MISSÕES</small></b><b>01 <small>JORNADA SUA</small></b></div></section><section class="login-panel"><div class="login-card"><div class="eyebrow">BEM-VINDO AO LABORATÓRIO</div><h2>${tab==='register'?'Crie seu passaporte.':tab==='teacher'?'Acesso do professor.':tab==='setup'?'Prepare sua sala.':'Vamos continuar?'}</h2><p class="muted">${tab==='setup'?'Defina uma senha do professor para este servidor local. Na Vercel, o acesso é configurado no ambiente do projeto.':'Seu progresso acompanha você em cada aula.'}</p><div class="tabs"><button data-login="student" class="${tab==='student'?'selected':''}">Já sou aluno</button><button data-login="register" class="${tab==='register'?'selected':''}">Primeiro acesso</button></div><form id="login-form">${tab==='register'?'<label>Seu nome<input name="name" autocomplete="name" required minlength="3" maxlength="80" placeholder="Como quer ser chamado?"></label><label>Código da turma<input name="classCode" autocapitalize="characters" required maxlength="30" placeholder="Peça ao professor"></label><label>Crie um PIN (6 a 12 números)<input name="pin" autocomplete="new-password" type="password" inputmode="numeric" pattern="[0-9]{6,12}" required placeholder="Guarde seu PIN"></label>':tab==='teacher'||tab==='setup'?`<label>Senha do professor<input name="password" type="password" autocomplete="${tab==='setup'?'new-password':'current-password'}" required minlength="${tab==='setup'?10:1}" maxlength="128" placeholder="${tab==='setup'?'Pelo menos 10 caracteres':'Sua senha'}"></label>`:'<label>Código pessoal<input name="accessCode" autocomplete="username" autocapitalize="characters" required maxlength="30" placeholder="Seu código de 12 caracteres"></label><label>PIN<input name="pin" type="password" autocomplete="current-password" inputmode="numeric" required maxlength="12" placeholder="Seu PIN"></label>'}<p id="login-error" class="form-error" role="alert"></p><button class="primary full" type="submit">${tab==='register'?'Criar meu acesso ↗':tab==='setup'?'Configurar professor ↗':'Entrar no laboratório ↗'}</button></form><button class="text-btn" id="teacher-access">${tab==='teacher'?'← Voltar ao aluno':'Sou professor →'}</button>${status?.needsSetup?'<button class="text-btn" id="local-setup">Configurar o professor neste computador →</button>':''}<div class="login-note">${status?.mode==='local'?'MODO LOCAL · Dados salvos neste servidor. Para turmas pela internet, configure o banco na Vercel.':'ACESSO DA TURMA · Aulas abertas pelo professor.'}</div><p class="muted small">Primeiro acesso: use o código da turma. Nos próximos: seu código pessoal + PIN. Esqueceu o acesso? O professor pode ajudar.</p></div></section></div>`;$$('[data-login]').forEach(b=>b.onclick=()=>login(b.dataset.login));$('#teacher-access').onclick=()=>login(tab==='teacher'?'student':'teacher');if($('#local-setup'))$('#local-setup').onclick=()=>login('setup');$('#login-form').onsubmit=async ev=>{ev.preventDefault();const button=ev.submitter;button.disabled=true;$('#login-error').textContent='';try{let data=Object.fromEntries(new FormData(ev.target));const result=await api(tab==='register'?'register':tab==='teacher'?'teacher-login':tab==='setup'?'setup':'student-login',data);state=result.role==='teacher'?{role:'teacher'}:result;if(tab==='setup')status.needsSetup=false;shell();await home();if(tab==='register')accessCard(true);startRefresh()}catch(err){$('#login-error').textContent=err.message}finally{button.disabled=false}};}
-function accessCard(first=false){modal(`<div class="eyebrow">${first?'PASSAPORTE CRIADO':'SEU ACESSO'}</div><h2>${e(state.student.name)}, guarde seu código.</h2><p>Use este código pessoal e seu PIN para entrar em qualquer dispositivo. Ele é diferente do código da turma.</p><div class="access-code">${e(state.student.access_code)}</div><button class="primary" id="save-access">Baixar cartão de acesso ↓</button><p class="muted">O cartão não inclui o PIN. Se esquecer, peça ao professor para redefini-lo.</p>`);$('#save-access').onclick=()=>downloadText('meu-acesso-interface.txt',`INTERFACE — MEU ACESSO\nNome: ${state.student.name}\nTurma: ${state.classroom.name}\nCódigo pessoal: ${state.student.access_code}\nUse este código com seu PIN.\n`)}
-function downloadText(name,text){const url=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-async function home(){view='map';activeTask=null;activeLesson=null;if(state.role==='teacher')return teacherHome();map();}
-function map(){view='map';const opened=state.classroom.released.length,total=state.progress.filter(p=>p.status==='approved').length;$('#screen').innerHTML=`<section class="page"><div class="map-hero"><div><div class="eyebrow">SUA JORNADA / ${e(state.classroom.name)}</div><h1>Conhecimento<br>que vira <span>ação.</span></h1><p class="lead">Olá, ${e(state.student.name.split(' ')[0])}. Cada missão é uma oportunidade de experimentar. Comece com apoio ou vá além.</p><button class="primary" id="resume">${opened?'Ir para uma aula aberta ↗':'Ver meu passaporte ↗'}</button></div><div class="xp-console"><div class="console-top"><span>SEU PASSAPORTE DIGITAL</span><span class="live"></span></div><strong>${format(xp())}<small>XP</small></strong><span class="rank">${e(badgeName())}</span><div class="track"><i style="width:${Math.min(100,total/40*100)}%"></i></div><div class="console-stats"><span><b>${String(total).padStart(2,'0')}</b> missões aprovadas</span><span><b>${String(opened).padStart(2,'0')}</b> aulas abertas</span></div></div></div><div class="section-line"><div><div class="eyebrow">DEZ AULAS / UMA LABORATÓRIO CONECTADA</div><h2>O mapa das suas conquistas.</h2></div><button class="ghost" id="refresh-map">↻ Atualizar liberações</button></div><div class="lesson-grid">${state.lessons.map(l=>{const open=state.classroom.released.includes(l.id),n=lessonProgress(l.id);return `<button class="lesson-card ${open?'available':'locked'}" data-lesson="${l.id}" aria-label="Aula ${l.id}: ${e(l.title)}. ${open?'Aberta':'Bloqueada'}"><div class="card-top"><span>AULA ${String(l.id).padStart(2,'0')}</span><span class="pill ${open?'open':''}">${open?'● ABERTA':'⌑ BLOQUEADA'}</span></div><div class="lesson-icon">${icons[l.id-1]}</div><h3>${e(l.title)}</h3><p>${e(l.subtitle)}</p><div class="lesson-topics">${l.topics.slice(0,3).map(t=>`<span>${e(t)}</span>`).join('')}</div><div class="card-bottom"><span>${n} / ${l.taskCount} missões</span><span>${open?'Explorar ↗':'Aguarde o professor'}</span></div><div class="card-track"><i style="width:${n/l.taskCount*100}%"></i></div></button>`}).join('')}</div><div class="callout">↳ Aulas abertas pelo professor. Dicas sempre disponíveis. Nenhuma tentativa tira seus pontos.</div></section>`;$('#resume').onclick=()=>opened?openLesson(state.classroom.released[0]):passport();$('#refresh-map').onclick=refreshState;}
-async function refreshState(){if(!state||state.role!=='student')return;try{const before=state.classroom?.released.join(',');state=await api('me');updateSidebar();if(view==='map')map();if(view==='passport')passport();if(activeLesson&&!(state.lessons||[]).some(lesson=>String(lesson.id)===String(activeLesson.id)&&lesson.published)){activeLesson=null;activeTask=null;map();toast('A aula foi fechada. Seu progresso foi preservado.')}else if(activeLesson&&activeTask)updateTaskStatus();if(before!==state.classroom?.released.join(','))toast('O professor atualizou as aulas abertas.')}catch(err){if(err.status===401){clearInterval(refreshTimer);if(typeof stopStudyTimer==='function')stopStudyTimer();state=null;login();toast('Entre novamente com seu código pessoal e PIN.');return}toast(err.message)}}
-function startRefresh(){clearInterval(refreshTimer);if(typeof stopStudyTimer==='function')stopStudyTimer();if(state.role==='student')refreshTimer=setInterval(()=>{if(!document.hidden&&!busy)refreshState()},10000);else if(state.role==='teacher')refreshTimer=setInterval(()=>{if(!document.hidden&&!busy&&view==='teacher'&&typeof refreshTeacherSilently==='function')refreshTeacherSilently()},6000)}
-function labelStatus(s){return {approved:'Aprovada',pending:'Em avaliação',revision:'Revisar',retry:'Tentar novamente'}[s]||'Não iniciada'}
-function passport(){view='passport';activeTask=null;activeLesson=null;$('#screen').innerHTML=`<section class="page"><div class="eyebrow">SEU PASSAPORTE</div><h1>Cada conquista<br><span>conta uma história.</span></h1><div class="passport-card"><span class="avatar large">${e(state.student.name.slice(0,1).toUpperCase())}</span><div><h2>${e(state.student.name)}</h2><p>${e(state.classroom.name)} · ${e(badgeName())}</p><button class="text-btn" id="show-access">Ver meu código de acesso ↗</button></div><strong>${format(xp())}<small> XP</small></strong></div><h2>Insígnias da jornada</h2><p class="muted">Cada aula com as três missões essenciais aprovadas recebe uma insígnia. Bônus são opcionais.</p><div class="badges">${state.lessons.map(l=>{const core=state.progress.filter(r=>r.task_id.startsWith('l'+l.id+'-')&&!r.task_id.endsWith('bonus')&&r.status==='approved').length;return `<div class="badge ${core>=3?'earned':''}"><span>${icons[l.id-1]}</span><b>Aula ${l.id}</b><small>${core>=3?'Conquistada':'Em construção'}</small></div>`}).join('')}</div><h2>Minhas entregas</h2><div class="delivery-list">${state.progress.length?state.progress.map(r=>`<article><div><b>${e(r.task_id)}</b><span class="pill">${labelStatus(r.status)}</span></div><p>${e(r.feedback)}</p><strong>${r.status==='approved'?'+'+r.xp+' XP':'XP após aprovação'}</strong></article>`).join(''):'<p class="muted">Suas entregas aparecerão aqui quando você começar as missões.</p>'}</div><div class="callout"><b>Avaliação oficial da disciplina</b><p>${state.student.official_grade===null?'O professor ainda não registrou a nota oficial.':`Nota registrada: ${e(state.student.official_grade)} / 10. ${e(state.student.grade_note)}`}</p>XP acompanha sua prática e não substitui esta nota.</div><button class="primary" id="export-progress">Baixar meu resumo ↓</button></section>`;$('#show-access').onclick=()=>accessCard();$('#export-progress').onclick=()=>downloadText('minha-jornada-interface.txt',`INTERFACE\n${state.student.name}\nTurma: ${state.classroom.name}\nXP: ${xp()}\n\n`+state.progress.map(r=>`${r.task_id}: ${labelStatus(r.status)} (${r.xp} XP)\n${r.feedback}`).join('\n\n'));}
-async function openLesson(id){if(busy)return;const listed=state.lessons.find(lesson=>String(lesson.id)===String(id));if(!listed?.published)return toast('Esta aula ainda não foi publicada pelo professor.');$('#screen').innerHTML=loading();try{const result=await api('lesson',{id});activeLesson=result.lesson;activeLesson.sheets=result.sheets;activeTask=null;lessonPage();window.scrollTo(0,0)}catch(err){toast(err.message);map()}}
-function lessonPage(){if(activeLesson?.kind==='content'){view='lesson';$('#screen').innerHTML=`<section class="page content-lesson"><button class="text-btn" id="back-map">← Voltar para as aulas</button><div class="eyebrow">CONTEÚDO DA DISCIPLINA · ${e(activeLesson.minutes)} MIN</div><h1>${e(activeLesson.title)}</h1><p class="lead">${e(activeLesson.subtitle)}</p><div class="content-lesson-topics">${(activeLesson.topics||[]).map(topic=>`<span>${e(topic)}</span>`).join('')}</div><article class="content-lesson-body">${e(activeLesson.content).split(/\n{2,}/).map(paragraph=>`<p>${paragraph.replace(/\n/g,'<br>')}</p>`).join('')}</article></section>`;$('#back-map').onclick=map;return}return studyLanding();}
+function lessonNumber(lesson) {
+  return lesson?.legacy_lesson_id ?? lesson?.position ?? lesson?.id;
+}
+function lessonProgress(lesson) {
+  const id = typeof lesson === 'object' ? lesson.legacy_lesson_id : lesson;
+  return id
+    ? (state?.progress || []).filter(r => r.task_id.startsWith('l' + id + '-') && r.status === 'approved')
+        .length
+    : 0;
+}
+function loading() {
+  return '<div class="empty"><span class="loading-dot"></span>Carregando o laboratório…</div>';
+}
+function shell() {
+  const isTeacher = state?.role === 'teacher';
+  $('#app').innerHTML =
+    `<aside><a href="#" class="brand" data-route="home"><span class="logo-icon">i_</span>interface<span class="brand-dot">●</span></a><div class="course-label">INFORMÁTICA PARA TODOS<strong>Laboratório digital</strong></div><div class="nav-label">${isTeacher ? 'SALA DE CONTROLE' : 'SUA JORNADA'}</div><nav><button class="nav-item active" data-route="home"><span>◈</span>${isTeacher ? 'Painel das turmas' : 'Mapa do curso'}</button>${!isTeacher ? '<button class="nav-item" data-route="passport"><span>▰</span>Meu passaporte</button>' : ''}<button class="nav-item" id="help"><span>?</span>Como funciona</button></nav><div id="sidebar-status"></div><div class="sidebar-bottom"><button class="ghost full" id="logout">Sair da conta ↗</button><small>APRENDER É CONSTRUIR.<br>UMA MISSÃO DE CADA VEZ.</small></div></aside><main><header><span><i class="live"></i>${isTeacher ? 'PAINEL DO PROFESSOR' : 'LABORATÓRIO DIGITAL'}<em>/</em><span id="header-class"></span></span><div class="header-actions"><button class="ghost" id="fullscreen">⛶ Apresentar</button><button id="account" class="avatar" aria-label="Abrir meu acesso">${isTeacher ? 'P' : e(state.student.name.slice(0, 1).toUpperCase())}</button></div></header><div id="screen" tabindex="-1"></div><footer><span>INTERFACE / INFORMÁTICA BÁSICA</span><span>10 aulas. Muitas maneiras de aprender.</span></footer></main>`;
+  $('#logout').onclick = async () => {
+    if (busy) return toast('Aguarde a confirmação da entrega.');
+    try {
+      await api('logout');
+      clearInterval(refreshTimer);
+      if (typeof stopStudyTimer === 'function') stopStudyTimer();
+      state = null;
+      activeLesson = null;
+      activeTask = null;
+      login('student');
+    } catch (err) {
+      toast(err.message);
+    }
+  };
+  $('#help').onclick = help;
+  $('#fullscreen').onclick = async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch {
+      toast('Use F11 no navegador para apresentar.');
+    }
+  };
+  $('#account').onclick = () => (isTeacher ? help() : passport());
+  updateSidebar();
+}
+function updateSidebar() {
+  if (!state) return;
+  if (state.role === 'teacher') {
+    $('#sidebar-status').innerHTML =
+      '<div class="side-stat"><span>ACOMPANHAMENTO REAL</span><p>Libere aulas, acompanhe entregas e devolva orientações.</p></div>';
+    $('#header-class').textContent = 'SUAS TURMAS';
+    return;
+  }
+  $('#header-class').textContent = state.classroom.name;
+  $('#sidebar-status').innerHTML =
+    `<div class="side-stat"><span>${e(badgeName().toUpperCase())}</span><strong>${format(xp())}<small> XP</small></strong><div class="track"><i style="width:${xp() >= 3600 ? Math.min(100, (xp() - 3600) / 8) : (xp() % 900) / 9}%"></i></div><p>${xp() >= 3600 ? Math.max(0, 4400 - xp()) : 900 - (xp() % 900)} XP ${xp() >= 3600 ? 'para completar a jornada' : 'até o próximo marco'}</p></div><div class="side-profile"><span class="avatar">${e(state.student.name.slice(0, 1).toUpperCase())}</span><div><b>${e(state.student.name)}</b><small>${e(state.classroom.name)}</small></div></div>`;
+}
+function help() {
+  modal(
+    `<div class="eyebrow">COMO FUNCIONA</div><h2>Seu ritmo, uma turma.</h2><div class="help-list"><p><b>1. O professor abre a aula.</b><br>Somente aulas liberadas podem ser acessadas e receber entregas.</p><p><b>2. Você aprende e experimenta.</b><br>Escolha o modo guiado para ver dicas. As missões essenciais são as mesmas para todos.</p><p><b>3. A prática vira conquista.</b><br>Há novas tentativas sem perda de pontos. Cada missão aprovada dá XP uma única vez.</p><p><b>4. Você pode ir além.</b><br>Missões bônus são opcionais. Respostas abertas recebem devolutiva do professor antes do XP.</p></div><div class="callout">XP acompanha a jornada. A nota da prova oficial é um registro separado.</div><p class="muted">Use seu código pessoal e PIN para voltar em outro dispositivo. Saia da conta em computadores compartilhados.</p>`
+  );
+}
+function login(tab = 'student') {
+  clearInterval(refreshTimer);
+  if (typeof stopStudyTimer === 'function') stopStudyTimer();
+  $('#app').innerHTML =
+    `<div class="login-layout"><section class="login-story"><a class="brand" href="#"><span class="logo-icon">i_</span>interface<span class="brand-dot">●</span></a><div class="eyebrow">INFORMÁTICA PARA TODOS</div><h1>Seu próximo<br>nível começa<br><span>na prática.</span></h1><p>Explore o computador. Organize seus projetos. Transforme dados em decisões.</p><div class="login-orbit"><div class="login-chip">i_<small>LABORATÓRIO DIGITAL</small></div><span>EXPLORAR</span><span>CONSTRUIR</span><span>EVOLUIR</span></div><div class="login-facts"><b>10 <small>AULAS</small></b><b>40 <small>MISSÕES</small></b><b>01 <small>JORNADA SUA</small></b></div></section><section class="login-panel"><div class="login-card"><div class="eyebrow">BEM-VINDO AO LABORATÓRIO</div><h2>${tab === 'register' ? 'Crie seu passaporte.' : tab === 'teacher' ? 'Acesso do professor.' : tab === 'setup' ? 'Prepare sua sala.' : 'Vamos continuar?'}</h2><p class="muted">${tab === 'setup' ? 'Defina uma senha do professor para este servidor local. Na Vercel, o acesso é configurado no ambiente do projeto.' : 'Seu progresso acompanha você em cada aula.'}</p><div class="tabs"><button data-login="student" class="${tab === 'student' ? 'selected' : ''}">Já sou aluno</button><button data-login="register" class="${tab === 'register' ? 'selected' : ''}">Primeiro acesso</button></div><form id="login-form">${tab === 'register' ? '<label>Seu nome<input name="name" autocomplete="name" required minlength="3" maxlength="80" placeholder="Como quer ser chamado?"></label><label>Código da turma<input name="classCode" autocapitalize="characters" required maxlength="30" placeholder="Peça ao professor"></label><label>Crie um PIN (6 a 12 números)<input name="pin" autocomplete="new-password" type="password" inputmode="numeric" pattern="[0-9]{6,12}" required placeholder="Guarde seu PIN"></label>' : tab === 'teacher' || tab === 'setup' ? `<label>Senha do professor<input name="password" type="password" autocomplete="${tab === 'setup' ? 'new-password' : 'current-password'}" required minlength="${tab === 'setup' ? 10 : 1}" maxlength="128" placeholder="${tab === 'setup' ? 'Pelo menos 10 caracteres' : 'Sua senha'}"></label>` : '<label>Código pessoal<input name="accessCode" autocomplete="username" autocapitalize="characters" required maxlength="30" placeholder="Seu código de 12 caracteres"></label><label>PIN<input name="pin" type="password" autocomplete="current-password" inputmode="numeric" required maxlength="12" placeholder="Seu PIN"></label>'}<p id="login-error" class="form-error" role="alert"></p><button class="primary full" type="submit">${tab === 'register' ? 'Criar meu acesso ↗' : tab === 'setup' ? 'Configurar professor ↗' : 'Entrar no laboratório ↗'}</button></form><button class="text-btn" id="teacher-access">${tab === 'teacher' ? '← Voltar ao aluno' : 'Sou professor →'}</button>${status?.needsSetup ? '<button class="text-btn" id="local-setup">Configurar o professor neste computador →</button>' : ''}<div class="login-note">${status?.mode === 'local' ? 'MODO LOCAL · Dados salvos neste servidor. Para turmas pela internet, configure o banco na Vercel.' : 'ACESSO DA TURMA · Aulas abertas pelo professor.'}</div><p class="muted small">Primeiro acesso: use o código da turma. Nos próximos: seu código pessoal + PIN. Esqueceu o acesso? O professor pode ajudar.</p></div></section></div>`;
+  $$('[data-login]').forEach(b => (b.onclick = () => login(b.dataset.login)));
+  $('#teacher-access').onclick = () => login(tab === 'teacher' ? 'student' : 'teacher');
+  if ($('#local-setup')) $('#local-setup').onclick = () => login('setup');
+  $('#login-form').onsubmit = async ev => {
+    ev.preventDefault();
+    const button = ev.submitter;
+    button.disabled = true;
+    $('#login-error').textContent = '';
+    try {
+      let data = Object.fromEntries(new FormData(ev.target));
+      const result = await api(
+        tab === 'register'
+          ? 'register'
+          : tab === 'teacher'
+            ? 'teacher-login'
+            : tab === 'setup'
+              ? 'setup'
+              : 'student-login',
+        data
+      );
+      state = result.role === 'teacher' ? { role: 'teacher' } : result;
+      if (tab === 'setup') status.needsSetup = false;
+      shell();
+      await home();
+      if (tab === 'register') accessCard(true);
+      startRefresh();
+    } catch (err) {
+      $('#login-error').textContent = err.message;
+    } finally {
+      button.disabled = false;
+    }
+  };
+}
+function accessCard(first = false) {
+  modal(
+    `<div class="eyebrow">${first ? 'PASSAPORTE CRIADO' : 'SEU ACESSO'}</div><h2>${e(state.student.name)}, guarde seu código.</h2><p>Use este código pessoal e seu PIN para entrar em qualquer dispositivo. Ele é diferente do código da turma.</p><div class="access-code">${e(state.student.access_code)}</div><button class="primary" id="save-access">Baixar cartão de acesso ↓</button><p class="muted">O cartão não inclui o PIN. Se esquecer, peça ao professor para redefini-lo.</p>`
+  );
+  $('#save-access').onclick = () =>
+    downloadText(
+      'meu-acesso-interface.txt',
+      `INTERFACE — MEU ACESSO\nNome: ${state.student.name}\nTurma: ${state.classroom.name}\nCódigo pessoal: ${state.student.access_code}\nUse este código com seu PIN.\n`
+    );
+}
+function downloadText(name, text) {
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' })),
+    a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+async function home() {
+  view = 'map';
+  activeTask = null;
+  activeLesson = null;
+  if (state.role === 'teacher') return teacherHome();
+  map();
+}
+function map() {
+  view = 'map';
+  const opened = state.classroom.released.length,
+    total = state.progress.filter(p => p.status === 'approved').length;
+  $('#screen').innerHTML =
+    `<section class="page"><div class="map-hero"><div><div class="eyebrow">SUA JORNADA / ${e(state.classroom.name)}</div><h1>Conhecimento<br>que vira <span>ação.</span></h1><p class="lead">Olá, ${e(state.student.name.split(' ')[0])}. Cada missão é uma oportunidade de experimentar. Comece com apoio ou vá além.</p><button class="primary" id="resume">${opened ? 'Ir para uma aula aberta ↗' : 'Ver meu passaporte ↗'}</button></div><div class="xp-console"><div class="console-top"><span>SEU PASSAPORTE DIGITAL</span><span class="live"></span></div><strong>${format(xp())}<small>XP</small></strong><span class="rank">${e(badgeName())}</span><div class="track"><i style="width:${Math.min(100, (total / 40) * 100)}%"></i></div><div class="console-stats"><span><b>${String(total).padStart(2, '0')}</b> missões aprovadas</span><span><b>${String(opened).padStart(2, '0')}</b> aulas abertas</span></div></div></div><div class="section-line"><div><div class="eyebrow">DEZ AULAS / UMA LABORATÓRIO CONECTADA</div><h2>O mapa das suas conquistas.</h2></div><button class="ghost" id="refresh-map">↻ Atualizar liberações</button></div><div class="lesson-grid">${state.lessons
+      .map(l => {
+        const open = state.classroom.released.includes(l.id),
+          n = lessonProgress(l.id);
+        return `<button class="lesson-card ${open ? 'available' : 'locked'}" data-lesson="${l.id}" aria-label="Aula ${l.id}: ${e(l.title)}. ${open ? 'Aberta' : 'Bloqueada'}"><div class="card-top"><span>AULA ${String(l.id).padStart(2, '0')}</span><span class="pill ${open ? 'open' : ''}">${open ? '● ABERTA' : '⌑ BLOQUEADA'}</span></div><div class="lesson-icon">${icons[l.id - 1]}</div><h3>${e(l.title)}</h3><p>${e(l.subtitle)}</p><div class="lesson-topics">${l.topics
+          .slice(0, 3)
+          .map(t => `<span>${e(t)}</span>`)
+          .join(
+            ''
+          )}</div><div class="card-bottom"><span>${n} / ${l.taskCount} missões</span><span>${open ? 'Explorar ↗' : 'Aguarde o professor'}</span></div><div class="card-track"><i style="width:${(n / l.taskCount) * 100}%"></i></div></button>`;
+      })
+      .join(
+        ''
+      )}</div><div class="callout">↳ Aulas abertas pelo professor. Dicas sempre disponíveis. Nenhuma tentativa tira seus pontos.</div></section>`;
+  $('#resume').onclick = () => (opened ? openLesson(state.classroom.released[0]) : passport());
+  $('#refresh-map').onclick = refreshState;
+}
+async function refreshState() {
+  if (!state || state.role !== 'student') return;
+  try {
+    const before = state.classroom?.released.join(',');
+    state = await api('me');
+    updateSidebar();
+    if (view === 'map') map();
+    if (view === 'passport') passport();
+    if (
+      activeLesson &&
+      !(state.lessons || []).some(lesson => String(lesson.id) === String(activeLesson.id) && lesson.published)
+    ) {
+      activeLesson = null;
+      activeTask = null;
+      map();
+      toast('A aula foi fechada. Seu progresso foi preservado.');
+    } else if (activeLesson && activeTask) updateTaskStatus();
+    if (before !== state.classroom?.released.join(',')) toast('O professor atualizou as aulas abertas.');
+  } catch (err) {
+    if (err.status === 401) {
+      clearInterval(refreshTimer);
+      if (typeof stopStudyTimer === 'function') stopStudyTimer();
+      state = null;
+      login();
+      toast('Entre novamente com seu código pessoal e PIN.');
+      return;
+    }
+    toast(err.message);
+  }
+}
+function startRefresh() {
+  clearInterval(refreshTimer);
+  if (typeof stopStudyTimer === 'function') stopStudyTimer();
+  if (state.role === 'student')
+    refreshTimer = setInterval(() => {
+      if (!document.hidden && !busy) refreshState();
+    }, 10000);
+  else if (state.role === 'teacher')
+    refreshTimer = setInterval(() => {
+      if (!document.hidden && !busy && view === 'teacher' && typeof refreshTeacherSilently === 'function')
+        refreshTeacherSilently();
+    }, 6000);
+}
+function labelStatus(s) {
+  return (
+    { approved: 'Aprovada', pending: 'Em avaliação', revision: 'Revisar', retry: 'Tentar novamente' }[s] ||
+    'Não iniciada'
+  );
+}
+function passport() {
+  view = 'passport';
+  activeTask = null;
+  activeLesson = null;
+  $('#screen').innerHTML =
+    `<section class="page"><div class="eyebrow">SEU PASSAPORTE</div><h1>Cada conquista<br><span>conta uma história.</span></h1><div class="passport-card"><span class="avatar large">${e(state.student.name.slice(0, 1).toUpperCase())}</span><div><h2>${e(state.student.name)}</h2><p>${e(state.classroom.name)} · ${e(badgeName())}</p><button class="text-btn" id="show-access">Ver meu código de acesso ↗</button></div><strong>${format(xp())}<small> XP</small></strong></div><h2>Insígnias da jornada</h2><p class="muted">Cada aula com as três missões essenciais aprovadas recebe uma insígnia. Bônus são opcionais.</p><div class="badges">${state.lessons
+      .map(l => {
+        const core = state.progress.filter(
+          r =>
+            r.task_id.startsWith('l' + l.id + '-') && !r.task_id.endsWith('bonus') && r.status === 'approved'
+        ).length;
+        return `<div class="badge ${core >= 3 ? 'earned' : ''}"><span>${icons[l.id - 1]}</span><b>Aula ${l.id}</b><small>${core >= 3 ? 'Conquistada' : 'Em construção'}</small></div>`;
+      })
+      .join(
+        ''
+      )}</div><h2>Minhas entregas</h2><div class="delivery-list">${state.progress.length ? state.progress.map(r => `<article><div><b>${e(r.task_id)}</b><span class="pill">${labelStatus(r.status)}</span></div><p>${e(r.feedback)}</p><strong>${r.status === 'approved' ? '+' + r.xp + ' XP' : 'XP após aprovação'}</strong></article>`).join('') : '<p class="muted">Suas entregas aparecerão aqui quando você começar as missões.</p>'}</div><div class="callout"><b>Avaliação oficial da disciplina</b><p>${state.student.official_grade === null ? 'O professor ainda não registrou a nota oficial.' : `Nota registrada: ${e(state.student.official_grade)} / 10. ${e(state.student.grade_note)}`}</p>XP acompanha sua prática e não substitui esta nota.</div><button class="primary" id="export-progress">Baixar meu resumo ↓</button></section>`;
+  $('#show-access').onclick = () => accessCard();
+  $('#export-progress').onclick = () =>
+    downloadText(
+      'minha-jornada-interface.txt',
+      `INTERFACE\n${state.student.name}\nTurma: ${state.classroom.name}\nXP: ${xp()}\n\n` +
+        state.progress
+          .map(r => `${r.task_id}: ${labelStatus(r.status)} (${r.xp} XP)\n${r.feedback}`)
+          .join('\n\n')
+    );
+}
+async function openLesson(id) {
+  if (busy) return;
+  const listed = state.lessons.find(lesson => String(lesson.id) === String(id));
+  if (!listed?.published) return toast('Esta aula ainda não foi publicada pelo professor.');
+  $('#screen').innerHTML = loading();
+  try {
+    const result = await api('lesson', { id });
+    activeLesson = result.lesson;
+    activeLesson.sheets = result.sheets;
+    activeTask = null;
+    lessonPage();
+    window.scrollTo(0, 0);
+  } catch (err) {
+    toast(err.message);
+    map();
+  }
+}
+function lessonPage() {
+  if (activeLesson?.kind === 'content') {
+    view = 'lesson';
+    $('#screen').innerHTML =
+      `<section class="page content-lesson"><button class="text-btn" id="back-map">← Voltar para as aulas</button><div class="eyebrow">CONTEÚDO DA DISCIPLINA · ${e(activeLesson.minutes)} MIN</div><h1>${e(activeLesson.title)}</h1><p class="lead">${e(activeLesson.subtitle)}</p><div class="content-lesson-topics">${(activeLesson.topics || []).map(topic => `<span>${e(topic)}</span>`).join('')}</div><article class="content-lesson-body">${e(
+        activeLesson.content
+      )
+        .split(/\n{2,}/)
+        .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
+        .join('')}</article></section>`;
+    $('#back-map').onclick = map;
+    return;
+  }
+  return studyLanding();
+}
 
-function agenda(l){modal(`<div class="eyebrow">ROTEIRO DE 180 MINUTOS / AULA ${l.id}</div><h2>${e(l.title)}</h2><div class="schedule">${l.agenda.map(a=>`<div><b>${e(a[0])}</b><span>${a[1]} min</span></div>`).join('')}</div><div class="callout">Duplas com papéis alternados: um aluno opera e o outro orienta. Troquem a cada missão. Dicas no modo guiado; aprofundamento no modo autônomo.</div><p>${e(l.practice)}</p><p>${e(l.stretch)}</p>`)}
-function draftKey(){return `interface-draft:${state.student?.id||'teacher-preview'}:${activeTask.id}`}
-function keepDraft(){try{localStorage.setItem(draftKey(),JSON.stringify(draft))}catch{}}
-function readDraft(){let saved;try{saved=JSON.parse(localStorage.getItem(draftKey())||'null')}catch{}return saved&&typeof saved==='object'&&!Array.isArray(saved)?saved:progressFor(activeTask.id)?.payload||{}}
-function openTask(id){activeTask=activeLesson.tasks.find(t=>t.id===id);if(!activeTask)return;draft=readDraft();selectedCable=null;selectedFile=null;taskPage();window.scrollTo(0,0)}
-function taskPage(){view='task';const t=activeTask;$('#screen').innerHTML=`<section class="page task-page"><button class="text-btn" id="back-lesson">← Aula ${lessonNumber(activeLesson)} / ${e(activeLesson.title)}</button><div class="task-title"><div><div class="eyebrow">${t.bonus?'✦ BÔNUS OPCIONAL':'LABORATÓRIO INTERATIVO'} / AULA ${lessonNumber(activeLesson)}</div><h1>${e(t.title)}</h1></div><div class="xp-tag">+${t.xp}<small>XP</small></div></div><p class="lead wide">${e(t.prompt)}</p><div id="task-status"></div><div id="workspace"></div><div class="task-tools"><details ${guide?'open':''}><summary>◎ Preciso de uma dica</summary><p>${e(t.hint||'Leia o enunciado e teste uma pequena mudança por vez.')}</p></details><p class="muted small">Seu rascunho fica neste navegador. Somente entregas enviadas ficam registradas no servidor.</p></div><div class="submit-row"><button class="ghost" id="reset-draft">Recomeçar rascunho ↺</button><button class="primary" id="submit-task">${['review','project'].includes(t.type)?'Enviar ao professor ↗':'Conferir minha missão ↗'}</button></div></section>`;$('#back-lesson').onclick=lessonPage;$('#reset-draft').onclick=()=>{if(busy)return toast('Aguarde a confirmação da entrega.');draft={};keepDraft();taskPage()};renderWorkspace();updateTaskStatus();$('#submit-task').onclick=submitTask;}
-function updateTaskStatus(){if(!activeTask||!$('#task-status'))return;let p=progressFor(activeTask.id);$('#task-status').innerHTML=p?`<div class="feedback ${p.status}"><b>${labelStatus(p.status)}${p.status==='approved'?' · +'+p.xp+' XP':''}</b><p>${e(p.feedback)}</p></div>`:'';}
-async function submitTask(){if(busy)return;busy=true;const b=$('#submit-task');b.disabled=true;b.textContent='Conferindo…';try{keepDraft();const response=await api('submit',{taskId:activeTask.id,payload:draft});state.progress=response.progress;updateSidebar();updateTaskStatus();if(response.result.status==='retry')$('#task-status').innerHTML=`<div class="feedback retry" role="status"><b>Vamos experimentar de novo.</b><p>${e(response.result.feedback)}</p></div>`;else{toast(response.result.status==='approved'?`Missão registrada · ${xp()} XP acumulados`:'Entrega enviada ao professor.');if(activeTask.type==='macro'&&response.result.status==='approved'){const out=$('#macro-result');if(out)out.innerHTML='<div class="report-preview"><b>RELATÓRIO DE ATIVIDADES</b><p>Cópia de trabalho criada ✓</p><p>Horas: 2 + 4 + 6 = <strong>12</strong></p><p>Cópia de saída salva ✓ Original preservado.</p></div>'}}$('#task-status').scrollIntoView({behavior:'smooth',block:'center'})}catch(err){toast(err.message)}finally{busy=false;b.disabled=false;b.textContent=['review','project'].includes(activeTask.type)?'Enviar ao professor ↗':'Conferir minha missão ↗'}}
-function renderWorkspace(){const t=activeTask,w=$('#workspace');
- if(t.type==='choice'){w.innerHTML=`<div class="workspace"><div class="eyebrow">ESCOLHA UMA ALTERNATIVA</div><div class="options">${t.options.map((v,i)=>`<label class="option"><input type="radio" name="option" value="${i}" ${draft.option===i?'checked':''}><span>${'ABC'[i]}</span>${e(v)}</label>`).join('')}</div></div>`;$$('[name=option]').forEach(x=>x.onchange=()=>{draft.option=+x.value;keepDraft()});return;}
- if(t.type==='cables')return cables();if(t.type==='files')return files();if(t.type==='order'||t.type==='macro')return order();if(t.type==='editor')return editor();if(t.type==='formula')return formula();if(t.type==='slides')return slides();if(t.type==='database')return database();
- if(t.type==='operations'){draft.values||=['','','',''];w.innerHTML=`<div class="workspace operations">${['120 + 80','500 − 150','4 × 75','360 ÷ 6'].map((s,i)=>`<label><span>${s} =</span><input data-value="${i}" aria-label="Resultado de ${s}" type="number" value="${e(draft.values[i])}" placeholder="Resultado"></label>`).join('')}</div>`;$$('[data-value]').forEach(x=>x.oninput=()=>{draft.values[+x.dataset.value]=x.value;keepDraft()});return;}
- if(t.type==='project'){w.innerHTML=`<div class="workspace"><div class="eyebrow">BRIEFING DO SEU PROJETO</div>${[['theme','Tema','Sobre o que você vai falar?'],['audience','Público','Quem vai assistir?'],['goal','Objetivo','O que o público deve compreender?'],['outline','Roteiro','Abertura, desenvolvimento e conclusão (100 caracteres ou mais)'],['sources','Fontes','Referências e endereços consultados']].map(([k,label,ph])=>`<label>${label}<textarea data-field="${k}" rows="${k==='outline'?6:2}" maxlength="5000" placeholder="${ph}">${e(draft[k]||'')}</textarea></label>`).join('')}<p class="muted">Critérios do professor: clareza do objetivo, sequência, conteúdo verificável e adequação ao público. Os slides podem ser apresentados no editor utilizado pela turma.</p></div>`;bindFields();return;}
- if(t.type==='sql'){w.innerHTML=`<div class="workspace"><div class="eyebrow">BANCO FICTÍCIO / SEM ACESSO A DADOS REAIS</div>${pieceTable()}<label>Sua consulta<textarea data-field="sql" class="code-input" rows="3" maxlength="300" placeholder="SELECT ...">${e(draft.sql||'')}</textarea></label><button class="ghost" id="run-sql">▷ Executar no simulador</button><div id="sql-result" aria-live="polite"></div></div>`;bindFields();$('#run-sql').onclick=()=>{let correct=/^select\s+\*\s+from\s+(?:itens|pecas)\s+where\s+estoque\s*<\s*5\s*;?$/i.test(String(draft.sql||'').trim());$('#sql-result').innerHTML=correct?'<div class="feedback approved"><b>2 registros encontrados</b><p>2 · Caneta · 2 unidades<br>3 · Agenda · 4 unidades</p></div>':'<p class="form-error">O simulador aceita SELECT * FROM itens WHERE estoque &lt; 5;</p>'};return;}
- w.innerHTML=`<div class="workspace"><label>${t.type==='text'?'Sua resposta':'Seu registro para o professor'}<textarea data-field="text" rows="${t.type==='text'?3:9}" maxlength="8000" placeholder="Escreva aqui…">${e(draft.text||'')}</textarea></label><div class="section-line"><span id="char-count" class="muted">${(draft.text||'').length} caracteres${t.min?' · mínimo '+t.min:''}</span>${t.type==='review'?'<span class="pill">AVALIAÇÃO DO PROFESSOR</span>':''}</div></div>`;bindFields();}
-function bindFields(){$$('[data-field]').forEach(x=>x.oninput=()=>{draft[x.dataset.field]=x.value;keepDraft();if($('#char-count'))$('#char-count').textContent=(draft.text||'').length+' caracteres'+(activeTask.min?' · mínimo '+activeTask.min:'')})}
-function cables(){draft.connections||={};const items=activeTask.items;$('#workspace').innerHTML=`<div class="cable-lab"><div class="cable-tray"><div class="eyebrow">BANCADA DE CABOS</div><h3>O que liga onde?</h3><p class="muted small">Arraste um cabo até a porta ou clique no cabo e depois na porta. Também funciona por teclado.</p>${items.map(([id,name])=>`<button draggable="true" class="cable ${selectedCable===id?'selected':''} ${draft.connections[id]?'connected':''}" data-cable="${id}"><span class="plug ${id}" aria-hidden="true"><i></i></span><span>${e(name)}<small>${draft.connections[id]?'Conectado a: '+e(items.find(x=>x[0]===draft.connections[id])?.[2]):'Selecione ou arraste'}</small></span><b>${draft.connections[id]?'↗':'⠿'}</b></button>`).join('')}</div><div class="computer-back"><div class="case-screw s1"></div><div class="case-screw s2"></div><div class="case-screw s3"></div><div class="case-screw s4"></div><div class="computer-top"><div class="fan" aria-hidden="true"><i></i></div><div><span class="case-label">FONTE DE ALIMENTAÇÃO</span><button class="port power" data-port="power" aria-label="Porta de alimentação"><span class="socket power"></span><small>ALIMENTAÇÃO</small></button></div></div><div class="io-panel"><div class="case-label">PAINEL DA PLACA-MÃE</div><div class="port-grid">${items.filter(x=>x[0]!=='power').map(([id,name,label])=>{const cable=Object.keys(draft.connections).find(k=>draft.connections[k]===id);return `<button class="port ${id} ${cable?'occupied':''}" data-port="${id}" aria-label="Porta ${e(label)}${cable?', conectada':''}"><span class="socket ${id}"><i></i></span><small>${e(label)}</small>${cable?'<b>●</b>':''}</button>`}).join('')}</div></div><div class="expansion"><i></i><i></i><i></i></div><div class="case-label">VISTA TRASEIRA / MODELO DIDÁTICO</div></div></div><div class="connection-status" id="connection-status" role="status">${Object.keys(draft.connections).length} de 6 cabos posicionados. A conferência acontece ao enviar.</div>`;$$('[data-cable]').forEach(b=>{b.onclick=()=>{selectedCable=b.dataset.cable;cables()};b.ondragstart=ev=>{selectedCable=b.dataset.cable;ev.dataTransfer.setData('text/plain',selectedCable);ev.dataTransfer.effectAllowed='move'}});$$('[data-port]').forEach(b=>{function connect(id){if(!items.some(i=>i[0]===id))return toast('Selecione um cabo da bancada primeiro.');for(const key of Object.keys(draft.connections)){if(draft.connections[key]===b.dataset.port)delete draft.connections[key]}draft.connections[id]=b.dataset.port;selectedCable=null;keepDraft();cables();$('#connection-status').textContent='Cabo posicionado. '+Object.keys(draft.connections).length+' de 6 conectados.'}b.onclick=()=>connect(selectedCable);b.ondragover=ev=>{ev.preventDefault();ev.dataTransfer.dropEffect='move'};b.ondrop=ev=>{ev.preventDefault();connect(ev.dataTransfer.getData('text/plain'))}})}
-function files(){draft.locations||={};const names=['desenho.pdf','medidas.xlsx','relato.docx'];$('#workspace').innerHTML=`<div class="workspace explorer"><div class="explorer-top"><span>▤ Explorador do laboratório</span><span>Simulador de arquivos</span></div><div class="path">Este computador / Estudos / Entrada</div><div class="file-grid">${names.map(n=>`<button class="file ${selectedFile===n?'selected':''}" data-file="${n}"><span>▧</span><b>${e(n)}</b><small>${e(draft.locations[n]||'Entrada')}</small></button>`).join('')}</div><p class="muted">${selectedFile?'Mover '+e(selectedFile)+' para:':'Selecione um arquivo e depois a pasta de destino.'}</p><div class="folder-grid">${['Projetos','Planilhas','Relatórios'].map(n=>`<button class="folder" data-folder="${n}"><span>▰</span>${n}<small>${Object.values(draft.locations).filter(v=>v===n).length} arquivo(s)</small></button>`).join('')}</div></div>`;$$('[data-file]').forEach(b=>b.onclick=()=>{selectedFile=b.dataset.file;files()});$$('[data-folder]').forEach(b=>b.onclick=()=>{if(!selectedFile)return toast('Escolha primeiro um arquivo.');draft.locations[selectedFile]=b.dataset.folder;selectedFile=null;keepDraft();files()})}
-function order(){draft.order||=[...activeTask.items];$('#workspace').innerHTML=`<div class="workspace"><div class="eyebrow">${activeTask.type==='macro'?'BLOCOS DE AUTOMAÇÃO':'ORGANIZE A SEQUÊNCIA'}</div><div class="order-list">${draft.order.map((text,i)=>`<div class="order-item"><span>${String(i+1).padStart(2,'0')}</span><b>${e(text)}</b><div><button data-move="${i},-1" ${i===0?'disabled':''} class="icon-btn" aria-label="Mover ${e(text)} para cima">↑</button><button data-move="${i},1" ${i===draft.order.length-1?'disabled':''} class="icon-btn" aria-label="Mover ${e(text)} para baixo">↓</button></div></div>`).join('')}</div>${activeTask.type==='macro'?'<div id="macro-result" aria-live="polite"><div class="report-preview"><b>RELATÓRIO ORIGINAL</b><p>leitura: 2h / pesquisa: 4h / revisão: 6h</p><small>A simulação aparece após a conferência da ordem.</small></div></div>':''}</div>`;$$('[data-move]').forEach(b=>b.onclick=()=>{let [i,d]=b.dataset.move.split(',').map(Number),j=i+d;if(j<0||j>=draft.order.length)return;[draft.order[i],draft.order[j]]=[draft.order[j],draft.order[i]];keepDraft();order()})}
-function editor(){draft.title??='';draft.body??='';$('#workspace').innerHTML=`<div class="editor-layout"><div class="workspace"><div class="editor-toolbar"><button id="toggle-list" class="ghost ${draft.list?'selected':''}" aria-pressed="${!!draft.list}">☷ Lista ${draft.list?'ativa':''}</button><button id="toggle-highlight" class="ghost ${draft.highlight?'selected':''}" aria-pressed="${!!draft.highlight}">▰ Destacar orientação</button></div><label>Título<input data-field="title" maxlength="150" value="${e(draft.title)}" placeholder="Comunicado de atividade"></label><label>Documento<textarea data-field="body" rows="12" maxlength="5000" placeholder="Público: ...&#10;Objetivo: ...&#10;Orientação: ...">${e(draft.body)}</textarea></label><button id="download-document" class="text-btn">Baixar documento em HTML ↓</button></div><div><div class="eyebrow">PRÉVIA DO DOCUMENTO</div><article class="paper" id="document-preview"></article></div></div>`;const preview=()=>{$('#document-preview').innerHTML=`<h2>${e(draft.title||'Título do comunicado')}</h2>${draft.body.split('\n').map(line=>`<p class="${draft.highlight&&/(?:seguran[cç]a|orienta[cç][aã]o)/i.test(line)?'highlight':''}">${draft.list?'• ':''}${e(line)||'&nbsp;'}</p>`).join('')}`};preview();$$('[data-field]').forEach(x=>x.oninput=()=>{draft[x.dataset.field]=x.value;keepDraft();preview()});$('#toggle-list').onclick=()=>{draft.list=!draft.list;keepDraft();editor()};$('#toggle-highlight').onclick=()=>{draft.highlight=!draft.highlight;keepDraft();editor()};$('#download-document').onclick=()=>downloadText('comunicado.html','<!doctype html><meta charset="utf-8"><title>Comunicado de atividade</title><style>body{font:18px/1.6 sans-serif;max-width:800px;margin:40px auto}.highlight{background:#fff1a3}</style>'+$('#document-preview').innerHTML)}
-function tableMarkup(rows){const width=Math.max(...rows.map(r=>r.length));return `<div class="table-scroll"><table class="sheet"><thead><tr><th></th>${Array.from({length:width},(_,i)=>`<th>${String.fromCharCode(65+i)}</th>`).join('')}</tr></thead><tbody>${rows.map((row,i)=>`<tr><th>${i+1}</th>${row.map(cell=>`<td>${e(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
-function formula(){const t=activeTask,rows=activeLesson.sheets[t.sheet];$('#workspace').innerHTML=`<div class="workspace"><div class="sheet-top"><span>▤ PLANILHA DA LABORATÓRIO</span><span>Dados fictícios</span></div>${tableMarkup(rows)}<div class="formula-bar"><span>${e(t.target)}</span><b>ƒx</b><input id="formula-input" autocomplete="off" spellcheck="false" aria-label="Fórmula para ${e(t.target)}" placeholder="=..." maxlength="300" value="${e(draft.formula||'')}"></div><p class="muted small">Use funções em português e ; entre argumentos. Este laboratório aceita SOMA, MÉDIA, SE, SOMASE e PROCV com busca exata. A conferência acontece no servidor, inclusive com uma alteração de dados.</p></div>`;$('#formula-input').oninput=ev=>{draft.formula=ev.target.value;keepDraft()}}
-const illustration=name=>({gear:'<div class="slide-illustration gear">⚙</div>',circuit:'<div class="slide-illustration circuit">▣<span>PROCESSAMENTO</span></div>',tools:'<div class="slide-illustration tools">⌁<span>ORGANIZAÇÃO</span></div>'}[name]||'');
-function safeVideo(link){try{let u=new URL(link);return u.protocol==='https:'&&!u.username&&!u.password}catch{return false}}
-function slides(){if(!Array.isArray(draft.slides)||draft.slides.length!==3)draft.slides=Array.from({length:3},()=>({title:'',body:'',image:'',alt:'',video:''}));$('#workspace').innerHTML=`<div class="workspace"><div class="eyebrow">ESTÚDIO DE SLIDES / TRÊS PARTES</div><div class="slide-builder">${draft.slides.map((s,i)=>`<article><h3>0${i+1} / ${['Abertura','Desenvolvimento','Conclusão'][i]}</h3><label>Título<input data-slide="${i},title" maxlength="140" value="${e(s.title)}"></label><label>Texto<textarea data-slide="${i},body" rows="3" maxlength="2000">${e(s.body)}</textarea></label><label>Imagem didática<select data-slide="${i},image"><option value="">Sem imagem</option>${[['gear','Engrenagem'],['circuit','Processador'],['tools','Manutenção']].map(([k,v])=>`<option value="${k}" ${s.image===k?'selected':''}>${v}</option>`).join('')}</select></label><label>Descrição da imagem<input data-slide="${i},alt" maxlength="400" value="${e(s.alt)}" placeholder="O que esta imagem ajuda a entender?"></label>${i===1?`<label>Link HTTPS do vídeo<input data-slide="${i},video" type="url" value="${e(s.video)}" placeholder="https://..."></label>`:''}</article>`).join('')}</div><div class="button-row"><button id="preview-slides" class="ghost">▷ Prévia da apresentação</button><button id="download-slides" class="text-btn">Baixar apresentação em HTML ↓</button></div></div>`;$$('[data-slide]').forEach(x=>x.oninput=()=>{const [i,k]=x.dataset.slide.split(',');draft.slides[+i][k]=x.value;keepDraft()});$('#preview-slides').onclick=()=>slidePreview(0);$('#download-slides').onclick=()=>{let html=draft.slides.map(s=>`<section><h1>${e(s.title)}</h1><p>${e(s.body)}</p>${illustration(s.image)}<p>${e(s.alt)}</p>${safeVideo(s.video)?`<a href="${e(s.video)}" target="_blank" rel="noreferrer">Abrir vídeo</a>`:''}</section>`).join('');downloadText('minha-apresentacao.html','<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Minha apresentação</title><style>body{margin:0;background:#0b1519;color:#e7f2f6;font:24px/1.6 sans-serif}section{min-height:100vh;padding:8vw;box-sizing:border-box;border-bottom:1px solid #324851}h1{font-size:3em;color:#83c1db}a{color:#83c1db}.slide-illustration{font-size:80px}span{display:block;font-size:20px}@media print{section{page-break-after:always}}</style>'+html+'</html>')}}
-function slidePreview(i){let s=draft.slides[i];modal(`<div class="eyebrow">SLIDE ${i+1} / 3</div><div class="preview-slide"><h2>${e(s.title||'Seu título')}</h2><p>${e(s.body||'Seu conteúdo')}</p>${s.image?`<figure role="img" aria-label="${e(s.alt)}">${illustration(s.image)}<figcaption>${e(s.alt)}</figcaption></figure>`:''}${safeVideo(s.video)?`<a href="${e(s.video)}" target="_blank" rel="noreferrer" class="text-btn">▷ Abrir vídeo em outra aba</a>`:''}</div><div class="button-row"><button id="prev-slide" class="ghost" ${i===0?'disabled':''}>← Anterior</button><button id="next-slide" class="primary" ${i===2?'disabled':''}>Próximo →</button></div>`);$('#prev-slide').onclick=()=>slidePreview(i-1);$('#next-slide').onclick=()=>slidePreview(i+1)}
-function pieceTable(){return '<div class="table-scroll"><table><thead><tr><th>id</th><th>nome</th><th>estoque</th></tr></thead><tbody><tr><td>1</td><td>Caderno</td><td>12</td></tr><tr><td>2</td><td>Caneta</td><td>2</td></tr><tr><td>3</td><td>Agenda</td><td>4</td></tr></tbody></table></div>'}
-function database(){draft.table??='';draft.fields||=Array.from({length:3},()=>({name:'',type:'TEXT',primary:false}));$('#workspace').innerHTML=`<div class="workspace"><div class="eyebrow">CONSTRUTOR DE BANCO / DADOS FICTÍCIOS</div><label>Nome da tabela<input id="table-name" maxlength="40" value="${e(draft.table)}" placeholder="itens"></label><div class="schema-grid"><b>Campo</b><b>Tipo</b><b>Chave primária</b>${draft.fields.map((f,i)=>`<input data-schema="${i},name" aria-label="Nome do campo ${i+1}" maxlength="40" value="${e(f.name)}"><select data-schema="${i},type" aria-label="Tipo do campo ${i+1}">${['TEXT','INTEGER'].map(t=>`<option ${t===f.type?'selected':''}>${t}</option>`).join('')}</select><label class="check-label"><input type="checkbox" data-schema="${i},primary" ${f.primary?'checked':''}> ID único</label>`).join('')}</div><h3>Registros para testar sua estrutura</h3>${pieceTable()}<p class="muted small">Este construtor cria uma estrutura didática na entrega. Ele não modifica o banco real da aplicação.</p></div>`;$('#table-name').oninput=ev=>{draft.table=ev.target.value;keepDraft()};$$('[data-schema]').forEach(x=>x.oninput=()=>{const [i,k]=x.dataset.schema.split(',');draft.fields[+i][k]=k==='primary'?x.checked:x.value;keepDraft()})}
+function agenda(l) {
+  modal(
+    `<div class="eyebrow">ROTEIRO DE 180 MINUTOS / AULA ${l.id}</div><h2>${e(l.title)}</h2><div class="schedule">${l.agenda.map(a => `<div><b>${e(a[0])}</b><span>${a[1]} min</span></div>`).join('')}</div><div class="callout">Duplas com papéis alternados: um aluno opera e o outro orienta. Troquem a cada missão. Dicas no modo guiado; aprofundamento no modo autônomo.</div><p>${e(l.practice)}</p><p>${e(l.stretch)}</p>`
+  );
+}
+function draftKey() {
+  return `interface-draft:${state.student?.id || 'teacher-preview'}:${activeTask.id}`;
+}
+function keepDraft() {
+  try {
+    localStorage.setItem(draftKey(), JSON.stringify(draft));
+  } catch {}
+}
+function readDraft() {
+  let saved;
+  try {
+    saved = JSON.parse(localStorage.getItem(draftKey()) || 'null');
+  } catch {}
+  return saved && typeof saved === 'object' && !Array.isArray(saved)
+    ? saved
+    : progressFor(activeTask.id)?.payload || {};
+}
+function openTask(id) {
+  activeTask = activeLesson.tasks.find(t => t.id === id);
+  if (!activeTask) return;
+  draft = readDraft();
+  selectedCable = null;
+  selectedFile = null;
+  taskPage();
+  window.scrollTo(0, 0);
+}
+function taskPage() {
+  view = 'task';
+  const t = activeTask;
+  $('#screen').innerHTML =
+    `<section class="page task-page"><button class="text-btn" id="back-lesson">← Aula ${lessonNumber(activeLesson)} / ${e(activeLesson.title)}</button><div class="task-title"><div><div class="eyebrow">${t.bonus ? '✦ BÔNUS OPCIONAL' : 'LABORATÓRIO INTERATIVO'} / AULA ${lessonNumber(activeLesson)}</div><h1>${e(t.title)}</h1></div><div class="xp-tag">+${t.xp}<small>XP</small></div></div><p class="lead wide">${e(t.prompt)}</p><div id="task-status"></div><div id="workspace"></div><div class="task-tools"><details ${guide ? 'open' : ''}><summary>◎ Preciso de uma dica</summary><p>${e(t.hint || 'Leia o enunciado e teste uma pequena mudança por vez.')}</p></details><p class="muted small">Seu rascunho fica neste navegador. Somente entregas enviadas ficam registradas no servidor.</p></div><div class="submit-row"><button class="ghost" id="reset-draft">Recomeçar rascunho ↺</button><button class="primary" id="submit-task">${['review', 'project'].includes(t.type) ? 'Enviar ao professor ↗' : 'Conferir minha missão ↗'}</button></div></section>`;
+  $('#back-lesson').onclick = lessonPage;
+  $('#reset-draft').onclick = () => {
+    if (busy) return toast('Aguarde a confirmação da entrega.');
+    draft = {};
+    keepDraft();
+    taskPage();
+  };
+  renderWorkspace();
+  updateTaskStatus();
+  $('#submit-task').onclick = submitTask;
+}
+function updateTaskStatus() {
+  if (!activeTask || !$('#task-status')) return;
+  let p = progressFor(activeTask.id);
+  $('#task-status').innerHTML = p
+    ? `<div class="feedback ${p.status}"><b>${labelStatus(p.status)}${p.status === 'approved' ? ' · +' + p.xp + ' XP' : ''}</b><p>${e(p.feedback)}</p></div>`
+    : '';
+}
+async function submitTask() {
+  if (busy) return;
+  busy = true;
+  const b = $('#submit-task');
+  b.disabled = true;
+  b.textContent = 'Conferindo…';
+  try {
+    keepDraft();
+    const response = await api('submit', { taskId: activeTask.id, payload: draft });
+    state.progress = response.progress;
+    updateSidebar();
+    updateTaskStatus();
+    if (response.result.status === 'retry')
+      $('#task-status').innerHTML =
+        `<div class="feedback retry" role="status"><b>Vamos experimentar de novo.</b><p>${e(response.result.feedback)}</p></div>`;
+    else {
+      toast(
+        response.result.status === 'approved'
+          ? `Missão registrada · ${xp()} XP acumulados`
+          : 'Entrega enviada ao professor.'
+      );
+      if (activeTask.type === 'macro' && response.result.status === 'approved') {
+        const out = $('#macro-result');
+        if (out)
+          out.innerHTML =
+            '<div class="report-preview"><b>RELATÓRIO DE ATIVIDADES</b><p>Cópia de trabalho criada ✓</p><p>Horas: 2 + 4 + 6 = <strong>12</strong></p><p>Cópia de saída salva ✓ Original preservado.</p></div>';
+      }
+    }
+    $('#task-status').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    busy = false;
+    b.disabled = false;
+    b.textContent = ['review', 'project'].includes(activeTask.type)
+      ? 'Enviar ao professor ↗'
+      : 'Conferir minha missão ↗';
+  }
+}
+function renderWorkspace() {
+  const t = activeTask,
+    w = $('#workspace');
+  if (t.type === 'choice') {
+    w.innerHTML = `<div class="workspace"><div class="eyebrow">ESCOLHA UMA ALTERNATIVA</div><div class="options">${t.options.map((v, i) => `<label class="option"><input type="radio" name="option" value="${i}" ${draft.option === i ? 'checked' : ''}><span>${'ABC'[i]}</span>${e(v)}</label>`).join('')}</div></div>`;
+    $$('[name=option]').forEach(
+      x =>
+        (x.onchange = () => {
+          draft.option = +x.value;
+          keepDraft();
+        })
+    );
+    return;
+  }
+  if (t.type === 'cables') return cables();
+  if (t.type === 'files') return files();
+  if (t.type === 'order' || t.type === 'macro') return order();
+  if (t.type === 'editor') return editor();
+  if (t.type === 'formula') return formula();
+  if (t.type === 'slides') return slides();
+  if (t.type === 'database') return database();
+  if (t.type === 'operations') {
+    draft.values ||= ['', '', '', ''];
+    w.innerHTML = `<div class="workspace operations">${['120 + 80', '500 − 150', '4 × 75', '360 ÷ 6'].map((s, i) => `<label><span>${s} =</span><input data-value="${i}" aria-label="Resultado de ${s}" type="number" value="${e(draft.values[i])}" placeholder="Resultado"></label>`).join('')}</div>`;
+    $$('[data-value]').forEach(
+      x =>
+        (x.oninput = () => {
+          draft.values[+x.dataset.value] = x.value;
+          keepDraft();
+        })
+    );
+    return;
+  }
+  if (t.type === 'project') {
+    w.innerHTML = `<div class="workspace"><div class="eyebrow">BRIEFING DO SEU PROJETO</div>${[
+      ['theme', 'Tema', 'Sobre o que você vai falar?'],
+      ['audience', 'Público', 'Quem vai assistir?'],
+      ['goal', 'Objetivo', 'O que o público deve compreender?'],
+      ['outline', 'Roteiro', 'Abertura, desenvolvimento e conclusão (100 caracteres ou mais)'],
+      ['sources', 'Fontes', 'Referências e endereços consultados']
+    ]
+      .map(
+        ([k, label, ph]) =>
+          `<label>${label}<textarea data-field="${k}" rows="${k === 'outline' ? 6 : 2}" maxlength="5000" placeholder="${ph}">${e(draft[k] || '')}</textarea></label>`
+      )
+      .join(
+        ''
+      )}<p class="muted">Critérios do professor: clareza do objetivo, sequência, conteúdo verificável e adequação ao público. Os slides podem ser apresentados no editor utilizado pela turma.</p></div>`;
+    bindFields();
+    return;
+  }
+  if (t.type === 'sql') {
+    w.innerHTML = `<div class="workspace"><div class="eyebrow">BANCO FICTÍCIO / SEM ACESSO A DADOS REAIS</div>${pieceTable()}<label>Sua consulta<textarea data-field="sql" class="code-input" rows="3" maxlength="300" placeholder="SELECT ...">${e(draft.sql || '')}</textarea></label><button class="ghost" id="run-sql">▷ Executar no simulador</button><div id="sql-result" aria-live="polite"></div></div>`;
+    bindFields();
+    $('#run-sql').onclick = () => {
+      let correct = /^select\s+\*\s+from\s+(?:itens|pecas)\s+where\s+estoque\s*<\s*5\s*;?$/i.test(
+        String(draft.sql || '').trim()
+      );
+      $('#sql-result').innerHTML = correct
+        ? '<div class="feedback approved"><b>2 registros encontrados</b><p>2 · Caneta · 2 unidades<br>3 · Agenda · 4 unidades</p></div>'
+        : '<p class="form-error">O simulador aceita SELECT * FROM itens WHERE estoque &lt; 5;</p>';
+    };
+    return;
+  }
+  w.innerHTML = `<div class="workspace"><label>${t.type === 'text' ? 'Sua resposta' : 'Seu registro para o professor'}<textarea data-field="text" rows="${t.type === 'text' ? 3 : 9}" maxlength="8000" placeholder="Escreva aqui…">${e(draft.text || '')}</textarea></label><div class="section-line"><span id="char-count" class="muted">${(draft.text || '').length} caracteres${t.min ? ' · mínimo ' + t.min : ''}</span>${t.type === 'review' ? '<span class="pill">AVALIAÇÃO DO PROFESSOR</span>' : ''}</div></div>`;
+  bindFields();
+}
+function bindFields() {
+  $$('[data-field]').forEach(
+    x =>
+      (x.oninput = () => {
+        draft[x.dataset.field] = x.value;
+        keepDraft();
+        if ($('#char-count'))
+          $('#char-count').textContent =
+            (draft.text || '').length + ' caracteres' + (activeTask.min ? ' · mínimo ' + activeTask.min : '');
+      })
+  );
+}
+function cables() {
+  draft.connections ||= {};
+  const items = activeTask.items;
+  $('#workspace').innerHTML =
+    `<div class="cable-lab"><div class="cable-tray"><div class="eyebrow">BANCADA DE CABOS</div><h3>O que liga onde?</h3><p class="muted small">Arraste um cabo até a porta ou clique no cabo e depois na porta. Também funciona por teclado.</p>${items.map(([id, name]) => `<button draggable="true" class="cable ${selectedCable === id ? 'selected' : ''} ${draft.connections[id] ? 'connected' : ''}" data-cable="${id}"><span class="plug ${id}" aria-hidden="true"><i></i></span><span>${e(name)}<small>${draft.connections[id] ? 'Conectado a: ' + e(items.find(x => x[0] === draft.connections[id])?.[2]) : 'Selecione ou arraste'}</small></span><b>${draft.connections[id] ? '↗' : '⠿'}</b></button>`).join('')}</div><div class="computer-back"><div class="case-screw s1"></div><div class="case-screw s2"></div><div class="case-screw s3"></div><div class="case-screw s4"></div><div class="computer-top"><div class="fan" aria-hidden="true"><i></i></div><div><span class="case-label">FONTE DE ALIMENTAÇÃO</span><button class="port power" data-port="power" aria-label="Porta de alimentação"><span class="socket power"></span><small>ALIMENTAÇÃO</small></button></div></div><div class="io-panel"><div class="case-label">PAINEL DA PLACA-MÃE</div><div class="port-grid">${items
+      .filter(x => x[0] !== 'power')
+      .map(([id, name, label]) => {
+        const cable = Object.keys(draft.connections).find(k => draft.connections[k] === id);
+        return `<button class="port ${id} ${cable ? 'occupied' : ''}" data-port="${id}" aria-label="Porta ${e(label)}${cable ? ', conectada' : ''}"><span class="socket ${id}"><i></i></span><small>${e(label)}</small>${cable ? '<b>●</b>' : ''}</button>`;
+      })
+      .join(
+        ''
+      )}</div></div><div class="expansion"><i></i><i></i><i></i></div><div class="case-label">VISTA TRASEIRA / MODELO DIDÁTICO</div></div></div><div class="connection-status" id="connection-status" role="status">${Object.keys(draft.connections).length} de 6 cabos posicionados. A conferência acontece ao enviar.</div>`;
+  $$('[data-cable]').forEach(b => {
+    b.onclick = () => {
+      selectedCable = b.dataset.cable;
+      cables();
+    };
+    b.ondragstart = ev => {
+      selectedCable = b.dataset.cable;
+      ev.dataTransfer.setData('text/plain', selectedCable);
+      ev.dataTransfer.effectAllowed = 'move';
+    };
+  });
+  $$('[data-port]').forEach(b => {
+    function connect(id) {
+      if (!items.some(i => i[0] === id)) return toast('Selecione um cabo da bancada primeiro.');
+      for (const key of Object.keys(draft.connections)) {
+        if (draft.connections[key] === b.dataset.port) delete draft.connections[key];
+      }
+      draft.connections[id] = b.dataset.port;
+      selectedCable = null;
+      keepDraft();
+      cables();
+      $('#connection-status').textContent =
+        'Cabo posicionado. ' + Object.keys(draft.connections).length + ' de 6 conectados.';
+    }
+    b.onclick = () => connect(selectedCable);
+    b.ondragover = ev => {
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = 'move';
+    };
+    b.ondrop = ev => {
+      ev.preventDefault();
+      connect(ev.dataTransfer.getData('text/plain'));
+    };
+  });
+}
+function files() {
+  draft.locations ||= {};
+  const names = ['desenho.pdf', 'medidas.xlsx', 'relato.docx'];
+  $('#workspace').innerHTML =
+    `<div class="workspace explorer"><div class="explorer-top"><span>▤ Explorador do laboratório</span><span>Simulador de arquivos</span></div><div class="path">Este computador / Estudos / Entrada</div><div class="file-grid">${names.map(n => `<button class="file ${selectedFile === n ? 'selected' : ''}" data-file="${n}"><span>▧</span><b>${e(n)}</b><small>${e(draft.locations[n] || 'Entrada')}</small></button>`).join('')}</div><p class="muted">${selectedFile ? 'Mover ' + e(selectedFile) + ' para:' : 'Selecione um arquivo e depois a pasta de destino.'}</p><div class="folder-grid">${['Projetos', 'Planilhas', 'Relatórios'].map(n => `<button class="folder" data-folder="${n}"><span>▰</span>${n}<small>${Object.values(draft.locations).filter(v => v === n).length} arquivo(s)</small></button>`).join('')}</div></div>`;
+  $$('[data-file]').forEach(
+    b =>
+      (b.onclick = () => {
+        selectedFile = b.dataset.file;
+        files();
+      })
+  );
+  $$('[data-folder]').forEach(
+    b =>
+      (b.onclick = () => {
+        if (!selectedFile) return toast('Escolha primeiro um arquivo.');
+        draft.locations[selectedFile] = b.dataset.folder;
+        selectedFile = null;
+        keepDraft();
+        files();
+      })
+  );
+}
+function order() {
+  draft.order ||= [...activeTask.items];
+  $('#workspace').innerHTML =
+    `<div class="workspace"><div class="eyebrow">${activeTask.type === 'macro' ? 'BLOCOS DE AUTOMAÇÃO' : 'ORGANIZE A SEQUÊNCIA'}</div><div class="order-list">${draft.order.map((text, i) => `<div class="order-item"><span>${String(i + 1).padStart(2, '0')}</span><b>${e(text)}</b><div><button data-move="${i},-1" ${i === 0 ? 'disabled' : ''} class="icon-btn" aria-label="Mover ${e(text)} para cima">↑</button><button data-move="${i},1" ${i === draft.order.length - 1 ? 'disabled' : ''} class="icon-btn" aria-label="Mover ${e(text)} para baixo">↓</button></div></div>`).join('')}</div>${activeTask.type === 'macro' ? '<div id="macro-result" aria-live="polite"><div class="report-preview"><b>RELATÓRIO ORIGINAL</b><p>leitura: 2h / pesquisa: 4h / revisão: 6h</p><small>A simulação aparece após a conferência da ordem.</small></div></div>' : ''}</div>`;
+  $$('[data-move]').forEach(
+    b =>
+      (b.onclick = () => {
+        let [i, d] = b.dataset.move.split(',').map(Number),
+          j = i + d;
+        if (j < 0 || j >= draft.order.length) return;
+        [draft.order[i], draft.order[j]] = [draft.order[j], draft.order[i]];
+        keepDraft();
+        order();
+      })
+  );
+}
+function editor() {
+  draft.title ??= '';
+  draft.body ??= '';
+  $('#workspace').innerHTML =
+    `<div class="editor-layout"><div class="workspace"><div class="editor-toolbar"><button id="toggle-list" class="ghost ${draft.list ? 'selected' : ''}" aria-pressed="${!!draft.list}">☷ Lista ${draft.list ? 'ativa' : ''}</button><button id="toggle-highlight" class="ghost ${draft.highlight ? 'selected' : ''}" aria-pressed="${!!draft.highlight}">▰ Destacar orientação</button></div><label>Título<input data-field="title" maxlength="150" value="${e(draft.title)}" placeholder="Comunicado de atividade"></label><label>Documento<textarea data-field="body" rows="12" maxlength="5000" placeholder="Público: ...&#10;Objetivo: ...&#10;Orientação: ...">${e(draft.body)}</textarea></label><button id="download-document" class="text-btn">Baixar documento em HTML ↓</button></div><div><div class="eyebrow">PRÉVIA DO DOCUMENTO</div><article class="paper" id="document-preview"></article></div></div>`;
+  const preview = () => {
+    $('#document-preview').innerHTML = `<h2>${e(draft.title || 'Título do comunicado')}</h2>${draft.body
+      .split('\n')
+      .map(
+        line =>
+          `<p class="${draft.highlight && /(?:seguran[cç]a|orienta[cç][aã]o)/i.test(line) ? 'highlight' : ''}">${draft.list ? '• ' : ''}${e(line) || '&nbsp;'}</p>`
+      )
+      .join('')}`;
+  };
+  preview();
+  $$('[data-field]').forEach(
+    x =>
+      (x.oninput = () => {
+        draft[x.dataset.field] = x.value;
+        keepDraft();
+        preview();
+      })
+  );
+  $('#toggle-list').onclick = () => {
+    draft.list = !draft.list;
+    keepDraft();
+    editor();
+  };
+  $('#toggle-highlight').onclick = () => {
+    draft.highlight = !draft.highlight;
+    keepDraft();
+    editor();
+  };
+  $('#download-document').onclick = () =>
+    downloadText(
+      'comunicado.html',
+      '<!doctype html><meta charset="utf-8"><title>Comunicado de atividade</title><style>body{font:18px/1.6 sans-serif;max-width:800px;margin:40px auto}.highlight{background:#fff1a3}</style>' +
+        $('#document-preview').innerHTML
+    );
+}
+function tableMarkup(rows) {
+  const width = Math.max(...rows.map(r => r.length));
+  return `<div class="table-scroll"><table class="sheet"><thead><tr><th></th>${Array.from({ length: width }, (_, i) => `<th>${String.fromCharCode(65 + i)}</th>`).join('')}</tr></thead><tbody>${rows.map((row, i) => `<tr><th>${i + 1}</th>${row.map(cell => `<td>${e(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+function formula() {
+  const t = activeTask,
+    rows = activeLesson.sheets[t.sheet];
+  $('#workspace').innerHTML =
+    `<div class="workspace"><div class="sheet-top"><span>▤ PLANILHA DA LABORATÓRIO</span><span>Dados fictícios</span></div>${tableMarkup(rows)}<div class="formula-bar"><span>${e(t.target)}</span><b>ƒx</b><input id="formula-input" autocomplete="off" spellcheck="false" aria-label="Fórmula para ${e(t.target)}" placeholder="=..." maxlength="300" value="${e(draft.formula || '')}"></div><p class="muted small">Use funções em português e ; entre argumentos. Este laboratório aceita SOMA, MÉDIA, SE, SOMASE e PROCV com busca exata. A conferência acontece no servidor, inclusive com uma alteração de dados.</p></div>`;
+  $('#formula-input').oninput = ev => {
+    draft.formula = ev.target.value;
+    keepDraft();
+  };
+}
+const illustration = name =>
+  ({
+    gear: '<div class="slide-illustration gear">⚙</div>',
+    circuit: '<div class="slide-illustration circuit">▣<span>PROCESSAMENTO</span></div>',
+    tools: '<div class="slide-illustration tools">⌁<span>ORGANIZAÇÃO</span></div>'
+  })[name] || '';
+function safeVideo(link) {
+  try {
+    let u = new URL(link);
+    return u.protocol === 'https:' && !u.username && !u.password;
+  } catch {
+    return false;
+  }
+}
+function slides() {
+  if (!Array.isArray(draft.slides) || draft.slides.length !== 3)
+    draft.slides = Array.from({ length: 3 }, () => ({ title: '', body: '', image: '', alt: '', video: '' }));
+  $('#workspace').innerHTML =
+    `<div class="workspace"><div class="eyebrow">ESTÚDIO DE SLIDES / TRÊS PARTES</div><div class="slide-builder">${draft.slides
+      .map(
+        (s, i) =>
+          `<article><h3>0${i + 1} / ${['Abertura', 'Desenvolvimento', 'Conclusão'][i]}</h3><label>Título<input data-slide="${i},title" maxlength="140" value="${e(s.title)}"></label><label>Texto<textarea data-slide="${i},body" rows="3" maxlength="2000">${e(s.body)}</textarea></label><label>Imagem didática<select data-slide="${i},image"><option value="">Sem imagem</option>${[
+            ['gear', 'Engrenagem'],
+            ['circuit', 'Processador'],
+            ['tools', 'Manutenção']
+          ]
+            .map(([k, v]) => `<option value="${k}" ${s.image === k ? 'selected' : ''}>${v}</option>`)
+            .join(
+              ''
+            )}</select></label><label>Descrição da imagem<input data-slide="${i},alt" maxlength="400" value="${e(s.alt)}" placeholder="O que esta imagem ajuda a entender?"></label>${i === 1 ? `<label>Link HTTPS do vídeo<input data-slide="${i},video" type="url" value="${e(s.video)}" placeholder="https://..."></label>` : ''}</article>`
+      )
+      .join(
+        ''
+      )}</div><div class="button-row"><button id="preview-slides" class="ghost">▷ Prévia da apresentação</button><button id="download-slides" class="text-btn">Baixar apresentação em HTML ↓</button></div></div>`;
+  $$('[data-slide]').forEach(
+    x =>
+      (x.oninput = () => {
+        const [i, k] = x.dataset.slide.split(',');
+        draft.slides[+i][k] = x.value;
+        keepDraft();
+      })
+  );
+  $('#preview-slides').onclick = () => slidePreview(0);
+  $('#download-slides').onclick = () => {
+    let html = draft.slides
+      .map(
+        s =>
+          `<section><h1>${e(s.title)}</h1><p>${e(s.body)}</p>${illustration(s.image)}<p>${e(s.alt)}</p>${safeVideo(s.video) ? `<a href="${e(s.video)}" target="_blank" rel="noreferrer">Abrir vídeo</a>` : ''}</section>`
+      )
+      .join('');
+    downloadText(
+      'minha-apresentacao.html',
+      '<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Minha apresentação</title><style>body{margin:0;background:#0b1519;color:#e7f2f6;font:24px/1.6 sans-serif}section{min-height:100vh;padding:8vw;box-sizing:border-box;border-bottom:1px solid #324851}h1{font-size:3em;color:#83c1db}a{color:#83c1db}.slide-illustration{font-size:80px}span{display:block;font-size:20px}@media print{section{page-break-after:always}}</style>' +
+        html +
+        '</html>'
+    );
+  };
+}
+function slidePreview(i) {
+  let s = draft.slides[i];
+  modal(
+    `<div class="eyebrow">SLIDE ${i + 1} / 3</div><div class="preview-slide"><h2>${e(s.title || 'Seu título')}</h2><p>${e(s.body || 'Seu conteúdo')}</p>${s.image ? `<figure role="img" aria-label="${e(s.alt)}">${illustration(s.image)}<figcaption>${e(s.alt)}</figcaption></figure>` : ''}${safeVideo(s.video) ? `<a href="${e(s.video)}" target="_blank" rel="noreferrer" class="text-btn">▷ Abrir vídeo em outra aba</a>` : ''}</div><div class="button-row"><button id="prev-slide" class="ghost" ${i === 0 ? 'disabled' : ''}>← Anterior</button><button id="next-slide" class="primary" ${i === 2 ? 'disabled' : ''}>Próximo →</button></div>`
+  );
+  $('#prev-slide').onclick = () => slidePreview(i - 1);
+  $('#next-slide').onclick = () => slidePreview(i + 1);
+}
+function pieceTable() {
+  return '<div class="table-scroll"><table><thead><tr><th>id</th><th>nome</th><th>estoque</th></tr></thead><tbody><tr><td>1</td><td>Caderno</td><td>12</td></tr><tr><td>2</td><td>Caneta</td><td>2</td></tr><tr><td>3</td><td>Agenda</td><td>4</td></tr></tbody></table></div>';
+}
+function database() {
+  draft.table ??= '';
+  draft.fields ||= Array.from({ length: 3 }, () => ({ name: '', type: 'TEXT', primary: false }));
+  $('#workspace').innerHTML =
+    `<div class="workspace"><div class="eyebrow">CONSTRUTOR DE BANCO / DADOS FICTÍCIOS</div><label>Nome da tabela<input id="table-name" maxlength="40" value="${e(draft.table)}" placeholder="itens"></label><div class="schema-grid"><b>Campo</b><b>Tipo</b><b>Chave primária</b>${draft.fields.map((f, i) => `<input data-schema="${i},name" aria-label="Nome do campo ${i + 1}" maxlength="40" value="${e(f.name)}"><select data-schema="${i},type" aria-label="Tipo do campo ${i + 1}">${['TEXT', 'INTEGER'].map(t => `<option ${t === f.type ? 'selected' : ''}>${t}</option>`).join('')}</select><label class="check-label"><input type="checkbox" data-schema="${i},primary" ${f.primary ? 'checked' : ''}> ID único</label>`).join('')}</div><h3>Registros para testar sua estrutura</h3>${pieceTable()}<p class="muted small">Este construtor cria uma estrutura didática na entrega. Ele não modifica o banco real da aplicação.</p></div>`;
+  $('#table-name').oninput = ev => {
+    draft.table = ev.target.value;
+    keepDraft();
+  };
+  $$('[data-schema]').forEach(
+    x =>
+      (x.oninput = () => {
+        const [i, k] = x.dataset.schema.split(',');
+        draft.fields[+i][k] = k === 'primary' ? x.checked : x.value;
+        keepDraft();
+      })
+  );
+}
 
-async function teacherHome(){view='teacher';activeLesson=null;activeTask=null;$('#screen').innerHTML=loading();try{teacher=await api('teacher-state');if(!selectedClass&&teacher.classes.length)selectedClass=teacher.classes[0].id;if(selectedClass)report=await api('class-report',{classId:selectedClass});else report=null;teacherPage()}catch(err){$('#screen').innerHTML=`<section class="page"><h2>Não foi possível carregar as turmas.</h2><p>${e(err.message)}</p><button class="primary" id="retry-teacher">Tentar novamente</button></section>`;$('#retry-teacher').onclick=teacherHome}}
-function teacherPage(){const cls=report?.classroom,students=report?.students||[],submissions=report?.submissions||[],pending=submissions.filter(s=>s.status==='pending');$('#screen').innerHTML=`<section class="page"><div class="eyebrow">SALA DE CONTROLE / PROFESSOR</div><div class="section-line"><div><h1>Uma turma.<br><span>Muitos caminhos.</span></h1><p class="lead">Abra as aulas no dia do encontro. Acompanhe a prática e ajude cada aluno a avançar.</p></div><button class="primary" id="new-class">+ Criar turma</button></div><div class="class-toolbar"><label>Turma em acompanhamento<select id="class-select"><option value="">Selecione uma turma</option>${teacher.classes.map(c=>`<option value="${c.id}" ${c.id===selectedClass?'selected':''}>${e(c.name)}</option>`).join('')}</select></label>${cls?`<div class="class-code"><small>CÓDIGO PARA PRIMEIRO ACESSO</small><b>${e(cls.code)}</b></div><button class="ghost" id="toggle-enrollment">${cls.enrollment_open?'Fechar inscrições':'Abrir inscrições'}</button><button class="ghost" id="reload-report">↻ Atualizar</button>`:''}</div>${!cls?'<div class="empty"><h2>Sua sala começa aqui.</h2><p>Crie uma turma para gerar o código de acesso. As dez aulas começam bloqueadas.</p></div>':`<div class="teacher-metrics"><article><span>ALUNOS CADASTRADOS</span><strong>${students.length}</strong></article><article><span>AULAS ABERTAS</span><strong>${cls.released.length}<small> / 10</small></strong></article><article><span>ENTREGAS PARA AVALIAR</span><strong>${pending.length}</strong></article><article><span>MISSÕES APROVADAS</span><strong>${submissions.filter(s=>s.status==='approved').length}</strong></article></div><div class="section-line"><div><div class="eyebrow">VOCÊ DEFINE O RITMO</div><h2>Liberação por aula.</h2></div><span class="muted small">Fechar uma aula preserva o progresso.</span></div><div class="release-grid">${teacher.curriculum.map(l=>`<article class="release-card ${cls.released.includes(l.id)?'released':''}"><span class="eyebrow">AULA ${String(l.id).padStart(2,'0')}</span><h3>${e(l.title)}</h3><p>${e(l.subtitle)}</p><div class="button-row"><button class="${cls.released.includes(l.id)?'ghost':'primary'}" data-release="${l.id}">${cls.released.includes(l.id)?'Fechar aula':'Liberar aula ↗'}</button><button class="text-btn" data-preview="${l.id}">Explorar</button></div></article>`).join('')}</div><div class="section-line"><div><div class="eyebrow">DEVOLUTIVAS QUE ENSINAM</div><h2>Entregas e projetos.</h2></div><label class="compact-label">Mostrar<select id="delivery-filter"><option value="pending">Aguardando avaliação</option><option value="all">Todas as entregas</option></select></label></div><div id="teacher-deliveries"></div><div class="section-line"><div><div class="eyebrow">ACOMPANHAMENTO INDIVIDUAL</div><h2>Alunos da turma.</h2></div><button class="ghost" id="export-class">Baixar relatório CSV ↓</button></div><div class="table-scroll roster"><table><thead><tr><th>Aluno e código pessoal</th><th>XP</th><th>Missões</th><th>Nota oficial</th><th>Ações</th></tr></thead><tbody>${students.map(s=>{const records=submissions.filter(r=>r.student_id===s.id),total=records.reduce((n,r)=>n+(r.status==='approved'?r.xp:0),0);return `<tr><td><b>${e(s.name)}</b><small>${e(s.access_code)}</small></td><td><strong>${format(total)}</strong></td><td>${records.filter(r=>r.status==='approved').length} / 40</td><td>${s.official_grade===null?'Não registrada':e(s.official_grade)+' / 10'}</td><td><button class="text-btn" data-grade="${s.id}">Registrar nota</button><button class="text-btn" data-pin="${s.id}">Redefinir PIN</button></td></tr>`}).join('')}</tbody></table>${students.length?'':'<p class="muted">Compartilhe o código da turma para os alunos se cadastrarem.</p>'}</div>`}<div class="callout">Equilíbrio na sala: pratique primeiro uma missão em dupla e depois individualmente. Os bônus são opcionais. O aluno pode usar dicas sem perder XP.</div></section>`;$('#new-class').onclick=createClass;$('#class-select').onchange=async ev=>{selectedClass=ev.target.value;report=null;await teacherHome()};if(!cls)return;$('#reload-report').onclick=teacherHome;$('#toggle-enrollment').onclick=async()=>{try{await api('enrollment',{classId:cls.id,open:!cls.enrollment_open});await teacherHome()}catch(err){toast(err.message)}};$$('[data-release]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{const id=+b.dataset.release,lessons=cls.released.includes(id)?cls.released.filter(n=>n!==id):[...cls.released,id];await api('release',{classId:cls.id,lessons});await teacherHome();toast(lessons.includes(id)?'Aula '+id+' liberada para a turma.':'Aula '+id+' fechada. Progresso preservado.')}catch(err){toast(err.message);b.disabled=false}});$$('[data-preview]').forEach(b=>b.onclick=()=>teacherPreview(+b.dataset.preview));$('#delivery-filter').onchange=ev=>renderDeliveries(ev.target.value);renderDeliveries('pending');$$('[data-pin]').forEach(b=>b.onclick=()=>resetPin(b.dataset.pin));$$('[data-grade]').forEach(b=>b.onclick=()=>officialGrade(b.dataset.grade));$('#export-class').onclick=exportClass;}
-function createClass(){modal('<div class="eyebrow">NOVA TURMA</div><h2>Um novo grupo de exploradores.</h2><form id="class-form"><label>Nome da turma<input name="name" minlength="3" maxlength="80" required placeholder="Grupo · Noite · 2026"></label><p class="muted">Um código de inscrição será gerado. Todas as aulas começam fechadas.</p><p class="form-error" id="class-error" role="alert"></p><button type="submit" class="primary">Criar turma ↗</button></form>');$('#class-form').onsubmit=async ev=>{ev.preventDefault();ev.submitter.disabled=true;try{const data=await api('create-class',{name:ev.target.elements.name.value});selectedClass=data.classroom.id;$('#modal').close();await teacherHome();toast('Turma criada. Compartilhe o código '+data.classroom.code)}catch(err){$('#class-error').textContent=err.message;ev.submitter.disabled=false}}}
-async function teacherPreview(id){try{let result=await api('preview-lesson',{id});activeLesson={...result.lesson,sheets:result.sheets};lessonPage();$('#screen').insertAdjacentHTML('afterbegin','<div class="preview-banner">MODO PROFESSOR · Demonstração sem registrar XP de aluno.</div>');window.scrollTo(0,0)}catch(err){toast(err.message)}}
-function renderDeliveries(filter){const records=report.submissions.filter(r=>filter==='all'||r.status==='pending');$('#teacher-deliveries').innerHTML=records.length?`<div class="delivery-list">${records.map(r=>{const s=report.students.find(s=>s.id===r.student_id),t=teacher.curriculum.flatMap(l=>l.tasks).find(t=>t.id===r.task_id);return `<article><div><b>${e(s?.name||'Aluno')} <small>· Aula ${r.lesson_id}</small></b><span class="pill">${labelStatus(r.status)}</span></div><h3>${e(t?.title||r.task_id)}</h3><details><summary>Ler entrega do aluno</summary><pre class="submitted-text">${e(payloadText(r.payload))}</pre></details><p>${e(r.feedback)}</p>${['review','project'].includes(t?.type)?`<button class="primary" data-review="${r.id}">Avaliar e devolver ↗</button>`:'<span class="muted small">Correção automática · '+r.xp+' XP</span>'}</article>`}).join('')}</div>`:'<div class="empty compact">Nenhuma entrega aguardando avaliação. Use “Atualizar” após as atividades da turma.</div>';$$('[data-review]').forEach(b=>b.onclick=()=>reviewDelivery(b.dataset.review))}
-function payloadText(p){const labels={text:'Resposta',theme:'Tema',audience:'Público',goal:'Objetivo',outline:'Roteiro',sources:'Fontes',title:'Título',body:'Documento',formula:'Fórmula',slides:'Slides',sql:'Consulta',connections:'Conexões',locations:'Arquivos',values:'Resultados',order:'Sequência',fields:'Campos',table:'Tabela',list:'Lista',highlight:'Destaque',option:'Alternativa (0=A, 1=B, 2=C)'};return Object.entries(p||{}).map(([k,v])=>(labels[k]||k)+':\n'+(typeof v==='object'?JSON.stringify(v,null,2):String(v))).join('\n\n')}
-function reviewDelivery(id){const r=report.submissions.find(s=>s.id===id);modal(`<div class="eyebrow">DEVOLUTIVA DO PROFESSOR</div><h2>Avaliar uma entrega.</h2><pre class="submitted-text">${e(payloadText(r.payload))}</pre><form id="review-form"><label>Devolutiva<textarea name="feedback" rows="4" minlength="5" maxlength="1500" required placeholder="Diga o que funcionou e o que pode melhorar.">${e(r.status==='pending'?'':r.feedback)}</textarea></label><label>Resultado<select name="status"><option value="approved">Aprovar e conceder XP da missão</option><option value="revision">Pedir revisão (sem XP por enquanto)</option></select></label><p id="review-error" class="form-error" role="alert"></p><button class="primary" type="submit">Salvar avaliação ↗</button></form>`);$('#review-form').onsubmit=async ev=>{ev.preventDefault();ev.submitter.disabled=true;try{await api('review',{id,...Object.fromEntries(new FormData(ev.target))});$('#modal').close();await teacherHome();toast('Devolutiva registrada.')}catch(err){$('#review-error').textContent=err.message;ev.submitter.disabled=false}}}
-function resetPin(id){const s=report.students.find(s=>s.id===id);modal(`<div class="eyebrow">RECUPERAR ACESSO</div><h2>${e(s.name)}</h2><p>Código pessoal: <b>${e(s.access_code)}</b>. Combine um novo PIN diretamente com o aluno. O PIN anterior deixa de funcionar e as sessões antigas são encerradas.</p><form id="pin-form"><label>Novo PIN<input name="pin" type="password" autocomplete="new-password" inputmode="numeric" pattern="[0-9]{6,12}" required placeholder="6 a 12 números"></label><p id="pin-error" class="form-error" role="alert"></p><button class="primary" type="submit">Redefinir PIN</button></form>`);$('#pin-form').onsubmit=async ev=>{ev.preventDefault();ev.submitter.disabled=true;try{await api('reset-pin',{studentId:id,pin:ev.target.elements.pin.value});$('#modal').close();toast('PIN redefinido. O aluno deve entrar novamente.')}catch(err){$('#pin-error').textContent=err.message;ev.submitter.disabled=false}}}
-function officialGrade(id){const s=report.students.find(s=>s.id===id);modal(`<div class="eyebrow">PROVA OFICIAL / REGISTRO SEPARADO DO XP</div><h2>${e(s.name)}</h2><p>Registre a nota da avaliação aplicada segundo as regras da instituição. A revisão autoral do sistema não substitui a prova oficial da instituição.</p><form id="grade-form"><label>Nota de 0 a 10<input name="grade" type="number" min="0" max="10" step="0.1" required value="${s.official_grade??''}"></label><label>Observação<input name="note" maxlength="500" value="${e(s.grade_note||'Avaliação oficial registrada pelo professor.')}"></label><p id="grade-error" class="form-error" role="alert"></p><button class="primary" type="submit">Registrar nota</button></form>`);$('#grade-form').onsubmit=async ev=>{ev.preventDefault();ev.submitter.disabled=true;try{await api('official-grade',{studentId:id,...Object.fromEntries(new FormData(ev.target))});$('#modal').close();await teacherHome();toast('Nota oficial registrada.')}catch(err){$('#grade-error').textContent=err.message;ev.submitter.disabled=false}}}
-function exportClass(){const csv=v=>'"'+String(v??'').replace(/^[=+@-]/,"'$&").replace(/"/g,'""')+'"';const rows=[['Aluno','Código pessoal','Turma','XP','Missões aprovadas','Entregas pendentes','Nota oficial'],...report.students.map(s=>{const r=report.submissions.filter(r=>r.student_id===s.id);return [s.name,s.access_code,report.classroom.name,r.reduce((n,r)=>n+(r.status==='approved'?r.xp:0),0),r.filter(r=>r.status==='approved').length,r.filter(r=>r.status==='pending').length,s.official_grade??'Não registrada']})];downloadText('relatorio-da-turma.csv','\uFEFF'+rows.map(r=>r.map(csv).join(';')).join('\r\n'))}
+async function teacherHome() {
+  view = 'teacher';
+  activeLesson = null;
+  activeTask = null;
+  $('#screen').innerHTML = loading();
+  try {
+    teacher = await api('teacher-state');
+    if (!selectedClass && teacher.classes.length) selectedClass = teacher.classes[0].id;
+    if (selectedClass) report = await api('class-report', { classId: selectedClass });
+    else report = null;
+    teacherPage();
+  } catch (err) {
+    $('#screen').innerHTML =
+      `<section class="page"><h2>Não foi possível carregar as turmas.</h2><p>${e(err.message)}</p><button class="primary" id="retry-teacher">Tentar novamente</button></section>`;
+    $('#retry-teacher').onclick = teacherHome;
+  }
+}
+function teacherPage() {
+  const cls = report?.classroom,
+    students = report?.students || [],
+    submissions = report?.submissions || [],
+    pending = submissions.filter(s => s.status === 'pending');
+  $('#screen').innerHTML =
+    `<section class="page"><div class="eyebrow">SALA DE CONTROLE / PROFESSOR</div><div class="section-line"><div><h1>Uma turma.<br><span>Muitos caminhos.</span></h1><p class="lead">Abra as aulas no dia do encontro. Acompanhe a prática e ajude cada aluno a avançar.</p></div><button class="primary" id="new-class">+ Criar turma</button></div><div class="class-toolbar"><label>Turma em acompanhamento<select id="class-select"><option value="">Selecione uma turma</option>${teacher.classes.map(c => `<option value="${c.id}" ${c.id === selectedClass ? 'selected' : ''}>${e(c.name)}</option>`).join('')}</select></label>${cls ? `<div class="class-code"><small>CÓDIGO PARA PRIMEIRO ACESSO</small><b>${e(cls.code)}</b></div><button class="ghost" id="toggle-enrollment">${cls.enrollment_open ? 'Fechar inscrições' : 'Abrir inscrições'}</button><button class="ghost" id="reload-report">↻ Atualizar</button>` : ''}</div>${
+      !cls
+        ? '<div class="empty"><h2>Sua sala começa aqui.</h2><p>Crie uma turma para gerar o código de acesso. As dez aulas começam bloqueadas.</p></div>'
+        : `<div class="teacher-metrics"><article><span>ALUNOS CADASTRADOS</span><strong>${students.length}</strong></article><article><span>AULAS ABERTAS</span><strong>${cls.released.length}<small> / 10</small></strong></article><article><span>ENTREGAS PARA AVALIAR</span><strong>${pending.length}</strong></article><article><span>MISSÕES APROVADAS</span><strong>${submissions.filter(s => s.status === 'approved').length}</strong></article></div><div class="section-line"><div><div class="eyebrow">VOCÊ DEFINE O RITMO</div><h2>Liberação por aula.</h2></div><span class="muted small">Fechar uma aula preserva o progresso.</span></div><div class="release-grid">${teacher.curriculum.map(l => `<article class="release-card ${cls.released.includes(l.id) ? 'released' : ''}"><span class="eyebrow">AULA ${String(l.id).padStart(2, '0')}</span><h3>${e(l.title)}</h3><p>${e(l.subtitle)}</p><div class="button-row"><button class="${cls.released.includes(l.id) ? 'ghost' : 'primary'}" data-release="${l.id}">${cls.released.includes(l.id) ? 'Fechar aula' : 'Liberar aula ↗'}</button><button class="text-btn" data-preview="${l.id}">Explorar</button></div></article>`).join('')}</div><div class="section-line"><div><div class="eyebrow">DEVOLUTIVAS QUE ENSINAM</div><h2>Entregas e projetos.</h2></div><label class="compact-label">Mostrar<select id="delivery-filter"><option value="pending">Aguardando avaliação</option><option value="all">Todas as entregas</option></select></label></div><div id="teacher-deliveries"></div><div class="section-line"><div><div class="eyebrow">ACOMPANHAMENTO INDIVIDUAL</div><h2>Alunos da turma.</h2></div><button class="ghost" id="export-class">Baixar relatório CSV ↓</button></div><div class="table-scroll roster"><table><thead><tr><th>Aluno e código pessoal</th><th>XP</th><th>Missões</th><th>Nota oficial</th><th>Ações</th></tr></thead><tbody>${students
+            .map(s => {
+              const records = submissions.filter(r => r.student_id === s.id),
+                total = records.reduce((n, r) => n + (r.status === 'approved' ? r.xp : 0), 0);
+              return `<tr><td><b>${e(s.name)}</b><small>${e(s.access_code)}</small></td><td><strong>${format(total)}</strong></td><td>${records.filter(r => r.status === 'approved').length} / 40</td><td>${s.official_grade === null ? 'Não registrada' : e(s.official_grade) + ' / 10'}</td><td><button class="text-btn" data-grade="${s.id}">Registrar nota</button><button class="text-btn" data-pin="${s.id}">Redefinir PIN</button></td></tr>`;
+            })
+            .join(
+              ''
+            )}</tbody></table>${students.length ? '' : '<p class="muted">Compartilhe o código da turma para os alunos se cadastrarem.</p>'}</div>`
+    }<div class="callout">Equilíbrio na sala: pratique primeiro uma missão em dupla e depois individualmente. Os bônus são opcionais. O aluno pode usar dicas sem perder XP.</div></section>`;
+  $('#new-class').onclick = createClass;
+  $('#class-select').onchange = async ev => {
+    selectedClass = ev.target.value;
+    report = null;
+    await teacherHome();
+  };
+  if (!cls) return;
+  $('#reload-report').onclick = teacherHome;
+  $('#toggle-enrollment').onclick = async () => {
+    try {
+      await api('enrollment', { classId: cls.id, open: !cls.enrollment_open });
+      await teacherHome();
+    } catch (err) {
+      toast(err.message);
+    }
+  };
+  $$('[data-release]').forEach(
+    b =>
+      (b.onclick = async () => {
+        b.disabled = true;
+        try {
+          const id = +b.dataset.release,
+            lessons = cls.released.includes(id) ? cls.released.filter(n => n !== id) : [...cls.released, id];
+          await api('release', { classId: cls.id, lessons });
+          await teacherHome();
+          toast(
+            lessons.includes(id)
+              ? 'Aula ' + id + ' liberada para a turma.'
+              : 'Aula ' + id + ' fechada. Progresso preservado.'
+          );
+        } catch (err) {
+          toast(err.message);
+          b.disabled = false;
+        }
+      })
+  );
+  $$('[data-preview]').forEach(b => (b.onclick = () => teacherPreview(+b.dataset.preview)));
+  $('#delivery-filter').onchange = ev => renderDeliveries(ev.target.value);
+  renderDeliveries('pending');
+  $$('[data-pin]').forEach(b => (b.onclick = () => resetPin(b.dataset.pin)));
+  $$('[data-grade]').forEach(b => (b.onclick = () => officialGrade(b.dataset.grade)));
+  $('#export-class').onclick = exportClass;
+}
+function createClass() {
+  modal(
+    '<div class="eyebrow">NOVA TURMA</div><h2>Um novo grupo de exploradores.</h2><form id="class-form"><label>Nome da turma<input name="name" minlength="3" maxlength="80" required placeholder="Grupo · Noite · 2026"></label><p class="muted">Um código de inscrição será gerado. Todas as aulas começam fechadas.</p><p class="form-error" id="class-error" role="alert"></p><button type="submit" class="primary">Criar turma ↗</button></form>'
+  );
+  $('#class-form').onsubmit = async ev => {
+    ev.preventDefault();
+    ev.submitter.disabled = true;
+    try {
+      const data = await api('create-class', { name: ev.target.elements.name.value });
+      selectedClass = data.classroom.id;
+      $('#modal').close();
+      await teacherHome();
+      toast('Turma criada. Compartilhe o código ' + data.classroom.code);
+    } catch (err) {
+      $('#class-error').textContent = err.message;
+      ev.submitter.disabled = false;
+    }
+  };
+}
+async function teacherPreview(id) {
+  try {
+    let result = await api('preview-lesson', { id });
+    activeLesson = { ...result.lesson, sheets: result.sheets };
+    lessonPage();
+    $('#screen').insertAdjacentHTML(
+      'afterbegin',
+      '<div class="preview-banner">MODO PROFESSOR · Demonstração sem registrar XP de aluno.</div>'
+    );
+    window.scrollTo(0, 0);
+  } catch (err) {
+    toast(err.message);
+  }
+}
+function renderDeliveries(filter) {
+  const records = report.submissions.filter(r => filter === 'all' || r.status === 'pending');
+  $('#teacher-deliveries').innerHTML = records.length
+    ? `<div class="delivery-list">${records
+        .map(r => {
+          const s = report.students.find(s => s.id === r.student_id),
+            t = teacher.curriculum.flatMap(l => l.tasks).find(t => t.id === r.task_id);
+          return `<article><div><b>${e(s?.name || 'Aluno')} <small>· Aula ${r.lesson_id}</small></b><span class="pill">${labelStatus(r.status)}</span></div><h3>${e(t?.title || r.task_id)}</h3><details><summary>Ler entrega do aluno</summary><pre class="submitted-text">${e(payloadText(r.payload))}</pre></details><p>${e(r.feedback)}</p>${['review', 'project'].includes(t?.type) ? `<button class="primary" data-review="${r.id}">Avaliar e devolver ↗</button>` : '<span class="muted small">Correção automática · ' + r.xp + ' XP</span>'}</article>`;
+        })
+        .join('')}</div>`
+    : '<div class="empty compact">Nenhuma entrega aguardando avaliação. Use “Atualizar” após as atividades da turma.</div>';
+  $$('[data-review]').forEach(b => (b.onclick = () => reviewDelivery(b.dataset.review)));
+}
+function payloadText(p) {
+  const labels = {
+    text: 'Resposta',
+    theme: 'Tema',
+    audience: 'Público',
+    goal: 'Objetivo',
+    outline: 'Roteiro',
+    sources: 'Fontes',
+    title: 'Título',
+    body: 'Documento',
+    formula: 'Fórmula',
+    slides: 'Slides',
+    sql: 'Consulta',
+    connections: 'Conexões',
+    locations: 'Arquivos',
+    values: 'Resultados',
+    order: 'Sequência',
+    fields: 'Campos',
+    table: 'Tabela',
+    list: 'Lista',
+    highlight: 'Destaque',
+    option: 'Alternativa (0=A, 1=B, 2=C)'
+  };
+  return Object.entries(p || {})
+    .map(
+      ([k, v]) => (labels[k] || k) + ':\n' + (typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v))
+    )
+    .join('\n\n');
+}
+function reviewDelivery(id) {
+  const r = report.submissions.find(s => s.id === id);
+  modal(
+    `<div class="eyebrow">DEVOLUTIVA DO PROFESSOR</div><h2>Avaliar uma entrega.</h2><pre class="submitted-text">${e(payloadText(r.payload))}</pre><form id="review-form"><label>Devolutiva<textarea name="feedback" rows="4" minlength="5" maxlength="1500" required placeholder="Diga o que funcionou e o que pode melhorar.">${e(r.status === 'pending' ? '' : r.feedback)}</textarea></label><label>Resultado<select name="status"><option value="approved">Aprovar e conceder XP da missão</option><option value="revision">Pedir revisão (sem XP por enquanto)</option></select></label><p id="review-error" class="form-error" role="alert"></p><button class="primary" type="submit">Salvar avaliação ↗</button></form>`
+  );
+  $('#review-form').onsubmit = async ev => {
+    ev.preventDefault();
+    ev.submitter.disabled = true;
+    try {
+      await api('review', { id, ...Object.fromEntries(new FormData(ev.target)) });
+      $('#modal').close();
+      await teacherHome();
+      toast('Devolutiva registrada.');
+    } catch (err) {
+      $('#review-error').textContent = err.message;
+      ev.submitter.disabled = false;
+    }
+  };
+}
+function resetPin(id) {
+  const s = report.students.find(s => s.id === id);
+  modal(
+    `<div class="eyebrow">RECUPERAR ACESSO</div><h2>${e(s.name)}</h2><p>Código pessoal: <b>${e(s.access_code)}</b>. Combine um novo PIN diretamente com o aluno. O PIN anterior deixa de funcionar e as sessões antigas são encerradas.</p><form id="pin-form"><label>Novo PIN<input name="pin" type="password" autocomplete="new-password" inputmode="numeric" pattern="[0-9]{6,12}" required placeholder="6 a 12 números"></label><p id="pin-error" class="form-error" role="alert"></p><button class="primary" type="submit">Redefinir PIN</button></form>`
+  );
+  $('#pin-form').onsubmit = async ev => {
+    ev.preventDefault();
+    ev.submitter.disabled = true;
+    try {
+      await api('reset-pin', { studentId: id, pin: ev.target.elements.pin.value });
+      $('#modal').close();
+      toast('PIN redefinido. O aluno deve entrar novamente.');
+    } catch (err) {
+      $('#pin-error').textContent = err.message;
+      ev.submitter.disabled = false;
+    }
+  };
+}
+function officialGrade(id) {
+  const s = report.students.find(s => s.id === id);
+  modal(
+    `<div class="eyebrow">PROVA OFICIAL / REGISTRO SEPARADO DO XP</div><h2>${e(s.name)}</h2><p>Registre a nota da avaliação aplicada segundo as regras da instituição. A revisão autoral do sistema não substitui a prova oficial da instituição.</p><form id="grade-form"><label>Nota de 0 a 10<input name="grade" type="number" min="0" max="10" step="0.1" required value="${s.official_grade ?? ''}"></label><label>Observação<input name="note" maxlength="500" value="${e(s.grade_note || 'Avaliação oficial registrada pelo professor.')}"></label><p id="grade-error" class="form-error" role="alert"></p><button class="primary" type="submit">Registrar nota</button></form>`
+  );
+  $('#grade-form').onsubmit = async ev => {
+    ev.preventDefault();
+    ev.submitter.disabled = true;
+    try {
+      await api('official-grade', { studentId: id, ...Object.fromEntries(new FormData(ev.target)) });
+      $('#modal').close();
+      await teacherHome();
+      toast('Nota oficial registrada.');
+    } catch (err) {
+      $('#grade-error').textContent = err.message;
+      ev.submitter.disabled = false;
+    }
+  };
+}
+function exportClass() {
+  const csv = v =>
+    '"' +
+    String(v ?? '')
+      .replace(/^[=+@-]/, "'$&")
+      .replace(/"/g, '""') +
+    '"';
+  const rows = [
+    ['Aluno', 'Código pessoal', 'Turma', 'XP', 'Missões aprovadas', 'Entregas pendentes', 'Nota oficial'],
+    ...report.students.map(s => {
+      const r = report.submissions.filter(r => r.student_id === s.id);
+      return [
+        s.name,
+        s.access_code,
+        report.classroom.name,
+        r.reduce((n, r) => n + (r.status === 'approved' ? r.xp : 0), 0),
+        r.filter(r => r.status === 'approved').length,
+        r.filter(r => r.status === 'pending').length,
+        s.official_grade ?? 'Não registrada'
+      ];
+    })
+  ];
+  downloadText('relatorio-da-turma.csv', '\uFEFF' + rows.map(r => r.map(csv).join(';')).join('\r\n'));
+}
 // A prévia do professor usa a mesma correção, mas não cria entregas nem concede XP.
-const studentSubmit=submitTask;submitTask=async function(){if(state.role!=='teacher')return studentSubmit();if(busy)return;busy=true;const b=$('#submit-task');b.disabled=true;try{keepDraft();let r=await api('preview-submit',{taskId:activeTask.id,payload:draft});$('#task-status').innerHTML=`<div class="feedback ${r.result.status}"><b>DEMONSTRAÇÃO · SEM REGISTRO DE XP</b><p>${e(r.result.feedback)}</p></div>`;if(activeTask.type==='macro'&&r.result.status==='approved')$('#macro-result').innerHTML='<div class="report-preview"><b>RELATÓRIO DE ATIVIDADES</b><p>Cabeçalho aplicado · Total: 12 h · Cópia salva</p></div>'}catch(err){toast(err.message)}finally{busy=false;b.disabled=false}};
-map=function(){view='map';const available=(state.lessons||[]).filter(lesson=>lesson.published),opened=available.length,total=state.progress.filter(record=>record.status==='approved').length;$('#screen').innerHTML=`<section class="page"><div class="map-hero"><div><div class="eyebrow">SUA JORNADA / ${e(state.classroom.name)}</div><h1>Conhecimento<br>que vira <span>ação.</span></h1><p class="lead">Olá, ${e(state.student.name.split(' ')[0])}. Cada aula pertence a uma disciplina da sua turma.</p><button class="primary" id="resume">${opened?'Ir para uma aula aberta ↗':'Ver meu passaporte ↗'}</button></div><div class="xp-console"><div class="console-top"><span>SEU PASSAPORTE DIGITAL</span><span class="live"></span></div><strong>${format(xp())}<small>XP</small></strong><span class="rank">${e(badgeName())}</span><div class="track"><i style="width:${Math.min(100,total/40*100)}%"></i></div><div class="console-stats"><span><b>${String(total).padStart(2,'0')}</b> missões aprovadas</span><span><b>${String(opened).padStart(2,'0')}</b> aulas abertas</span></div></div></div><div class="section-line"><div><div class="eyebrow">CONTEÚDOS DA SUA TURMA</div><h2>Aulas organizadas por disciplina.</h2></div><button class="ghost" id="refresh-map">↻ Atualizar conteúdos</button></div><div class="lesson-grid">${(state.lessons||[]).map(lesson=>{const open=lesson.published,n=lessonProgress(lesson),icon=icons[Math.max(0,(lesson.legacy_lesson_id||lesson.position||1)-1)%icons.length];return `<button class="lesson-card ${open?'available':'locked'}" data-lesson="${e(lesson.id)}" aria-label="${e(lesson.title)}. ${open?'Aberta':'Bloqueada'}"><div class="card-top"><span>AULA ${String(lesson.position).padStart(2,'0')}</span><span class="pill ${open?'open':''}">${open?'● ABERTA':'⌑ BLOQUEADA'}</span></div><div class="lesson-icon">${icon}</div><h3>${e(lesson.title)}</h3><p>${e(lesson.subtitle)}</p><div class="lesson-topics">${(lesson.topics||[]).slice(0,3).map(topic=>`<span>${e(topic)}</span>`).join('')}</div><div class="card-bottom"><span>${lesson.taskCount?`${n} / ${lesson.taskCount} missões`:`${lesson.minutes} minutos`}</span><span>${open?'Explorar ↗':'Aguarde o professor'}</span></div>${lesson.taskCount?`<div class="card-track"><i style="width:${n/lesson.taskCount*100}%"></i></div>`:''}</button>`}).join('')}</div><div class="callout">↳ O professor publica cada aula na turma. Fechar um conteúdo preserva todo o progresso já registrado.</div></section>`;$('#resume').onclick=()=>opened?openLesson(available[0].id):passport();$('#refresh-map').onclick=refreshState;};
-document.addEventListener('click',ev=>{const route=ev.target.closest('[data-route]');if(route){ev.preventDefault();if(!state)return;route.dataset.route==='passport'&&state.role==='student'?passport():home();return}const lesson=ev.target.closest('[data-lesson]');if(lesson)openLesson(lesson.dataset.lesson);const task=ev.target.closest('[data-task]');if(task)openTask(task.dataset.task)});
-async function init(){try{status=await api('status');if(status.authenticated){state=await api('me');shell();await home();startRefresh()}else login()}catch(err){$('#app').innerHTML=`<div class="setup-screen"><a class="brand" href="#"><span class="logo-icon">i_</span>interface</a><div class="eyebrow">PREPARAÇÃO DO AMBIENTE</div><h1>O laboratório está<br><span>quase pronta.</span></h1><p>A aplicação precisa do servidor e do banco para registrar alunos e liberar aulas.</p><div class="callout">Para testar no computador, execute npm run dev. Na Vercel, configure o Supabase e as variáveis descritas no guia de publicação.</div><p class="muted">${e(err.message)}</p><button class="primary" id="retry-init">Tentar novamente ↻</button></div>`;$('#retry-init').onclick=init}}init();
+const studentSubmit = submitTask;
+submitTask = async function () {
+  if (state.role !== 'teacher') return studentSubmit();
+  if (busy) return;
+  busy = true;
+  const b = $('#submit-task');
+  b.disabled = true;
+  try {
+    keepDraft();
+    let r = await api('preview-submit', { taskId: activeTask.id, payload: draft });
+    $('#task-status').innerHTML =
+      `<div class="feedback ${r.result.status}"><b>DEMONSTRAÇÃO · SEM REGISTRO DE XP</b><p>${e(r.result.feedback)}</p></div>`;
+    if (activeTask.type === 'macro' && r.result.status === 'approved')
+      $('#macro-result').innerHTML =
+        '<div class="report-preview"><b>RELATÓRIO DE ATIVIDADES</b><p>Cabeçalho aplicado · Total: 12 h · Cópia salva</p></div>';
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    busy = false;
+    b.disabled = false;
+  }
+};
+map = function () {
+  view = 'map';
+  const available = (state.lessons || []).filter(lesson => lesson.published),
+    opened = available.length,
+    total = state.progress.filter(record => record.status === 'approved').length;
+  $('#screen').innerHTML =
+    `<section class="page"><div class="map-hero"><div><div class="eyebrow">SUA JORNADA / ${e(state.classroom.name)}</div><h1>Conhecimento<br>que vira <span>ação.</span></h1><p class="lead">Olá, ${e(state.student.name.split(' ')[0])}. Cada aula pertence a uma disciplina da sua turma.</p><button class="primary" id="resume">${opened ? 'Ir para uma aula aberta ↗' : 'Ver meu passaporte ↗'}</button></div><div class="xp-console"><div class="console-top"><span>SEU PASSAPORTE DIGITAL</span><span class="live"></span></div><strong>${format(xp())}<small>XP</small></strong><span class="rank">${e(badgeName())}</span><div class="track"><i style="width:${Math.min(100, (total / 40) * 100)}%"></i></div><div class="console-stats"><span><b>${String(total).padStart(2, '0')}</b> missões aprovadas</span><span><b>${String(opened).padStart(2, '0')}</b> aulas abertas</span></div></div></div><div class="section-line"><div><div class="eyebrow">CONTEÚDOS DA SUA TURMA</div><h2>Aulas organizadas por disciplina.</h2></div><button class="ghost" id="refresh-map">↻ Atualizar conteúdos</button></div><div class="lesson-grid">${(
+      state.lessons || []
+    )
+      .map(lesson => {
+        const open = lesson.published,
+          n = lessonProgress(lesson),
+          icon = icons[Math.max(0, (lesson.legacy_lesson_id || lesson.position || 1) - 1) % icons.length];
+        return `<button class="lesson-card ${open ? 'available' : 'locked'}" data-lesson="${e(lesson.id)}" aria-label="${e(lesson.title)}. ${open ? 'Aberta' : 'Bloqueada'}"><div class="card-top"><span>AULA ${String(lesson.position).padStart(2, '0')}</span><span class="pill ${open ? 'open' : ''}">${open ? '● ABERTA' : '⌑ BLOQUEADA'}</span></div><div class="lesson-icon">${icon}</div><h3>${e(lesson.title)}</h3><p>${e(lesson.subtitle)}</p><div class="lesson-topics">${(
+          lesson.topics || []
+        )
+          .slice(0, 3)
+          .map(topic => `<span>${e(topic)}</span>`)
+          .join(
+            ''
+          )}</div><div class="card-bottom"><span>${lesson.taskCount ? `${n} / ${lesson.taskCount} missões` : `${lesson.minutes} minutos`}</span><span>${open ? 'Explorar ↗' : 'Aguarde o professor'}</span></div>${lesson.taskCount ? `<div class="card-track"><i style="width:${(n / lesson.taskCount) * 100}%"></i></div>` : ''}</button>`;
+      })
+      .join(
+        ''
+      )}</div><div class="callout">↳ O professor publica cada aula na turma. Fechar um conteúdo preserva todo o progresso já registrado.</div></section>`;
+  $('#resume').onclick = () => (opened ? openLesson(available[0].id) : passport());
+  $('#refresh-map').onclick = refreshState;
+};
+document.addEventListener('click', ev => {
+  const route = ev.target.closest('[data-route]');
+  if (route) {
+    ev.preventDefault();
+    if (!state) return;
+    route.dataset.route === 'passport' && state.role === 'student' ? passport() : home();
+    return;
+  }
+  const lesson = ev.target.closest('[data-lesson]');
+  if (lesson) openLesson(lesson.dataset.lesson);
+  const task = ev.target.closest('[data-task]');
+  if (task) openTask(task.dataset.task);
+});
+async function init() {
+  try {
+    status = await api('status');
+    if (status.authenticated) {
+      state = await api('me');
+      shell();
+      await home();
+      startRefresh();
+    } else login();
+  } catch (err) {
+    $('#app').innerHTML =
+      `<div class="setup-screen"><a class="brand" href="#"><span class="logo-icon">i_</span>interface</a><div class="eyebrow">PREPARAÇÃO DO AMBIENTE</div><h1>O laboratório está<br><span>quase pronta.</span></h1><p>A aplicação precisa do servidor e do banco para registrar alunos e liberar aulas.</p><div class="callout">Para testar no computador, execute npm run dev. Na Vercel, configure o Supabase e as variáveis descritas no guia de publicação.</div><p class="muted">${e(err.message)}</p><button class="primary" id="retry-init">Tentar novamente ↻</button></div>`;
+    $('#retry-init').onclick = init;
+  }
+}
+init();
 // Ajustes de navegação sem interromper um envio em andamento.
-const navigateHome=home;home=async function(){if(busy)return toast('Aguarde a confirmação da entrega.');return navigateHome()};
-const enterTask=openTask;openTask=function(id){if(busy)return toast('Aguarde a confirmação da entrega.');return enterTask(id)};
+const navigateHome = home;
+home = async function () {
+  if (busy) return toast('Aguarde a confirmação da entrega.');
+  return navigateHome();
+};
+const enterTask = openTask;
+openTask = function (id) {
+  if (busy) return toast('Aguarde a confirmação da entrega.');
+  return enterTask(id);
+};
 
-const returnToLesson=lessonPage;lessonPage=function(){if(busy)return toast('Aguarde a confirmação da entrega.');return returnToLesson()};
+const returnToLesson = lessonPage;
+lessonPage = function () {
+  if (busy) return toast('Aguarde a confirmação da entrega.');
+  return returnToLesson();
+};

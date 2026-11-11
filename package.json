@@ -11,6 +11,11 @@
     "build": "node build.cjs",
     "verify:deployment": "node scripts/verify-deployment.cjs",
     "check": "node --check course-app.js && node --check brand.js && node --check evoluindo-admin.js && node --check duel-monitor.js && node --check smooth-refresh.js && node --check championship-reports.js && node --check disqualification-controls.js && node --check question-import.js && node --check api/index.js && node --check lib/service.cjs && node --check lib/formula.cjs && node --check lib/grader.cjs && node --check study.js && node --check lib/learning.cjs && node --check lib/universal.cjs",
-    "test": "node --test tests/*.test.cjs"
+    "test": "node --test tests/*.test.cjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "3.6.2"
   }
 }

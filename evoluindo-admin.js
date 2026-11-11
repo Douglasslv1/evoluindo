@@ -1,189 +1,804 @@
-(()=>{
-  const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-  let rendering=false;
-  if(typeof xp==='function'&&!xp.evoluindo){const activityXp=xp;xp=function(){return activityXp()+(state?.xpEvents||[]).reduce((total,event)=>total+Number(event.xp||0),0)};xp.evoluindo=true}
+(() => {
+  const escapeHtml = value =>
+    String(value ?? '').replace(
+      /[&<>"']/g,
+      char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]
+    );
+  let rendering = false;
+  if (typeof xp === 'function' && !xp.evoluindo) {
+    const activityXp = xp;
+    xp = function () {
+      return (
+        activityXp() + (state?.xpEvents || []).reduce((total, event) => total + Number(event.xp || 0), 0)
+      );
+    };
+    xp.evoluindo = true;
+  }
 
-  function subjectPanel(){
-    if(typeof state==='undefined'||state?.role!=='teacher'||typeof teacher==='undefined')return;
-    const screen=document.getElementById('screen'),anchor=screen?.querySelector('.class-toolbar');
-    if(!anchor||screen.querySelector('#evoluindo-subject-manager'))return;
-    const subjects=Array.isArray(teacher.subjects)?teacher.subjects:[];
-    const links=Array.isArray(teacher.classSubjects)?teacher.classSubjects:[];
-    const assigned=new Set(selectedClass?links.filter(link=>link.class_id===selectedClass).map(link=>link.subject_id):[]);
-    const section=document.createElement('section');
-    section.id='evoluindo-subject-manager';
-    section.className='evoluindo-subjects';
-    section.innerHTML=`
+  function subjectPanel() {
+    if (typeof state === 'undefined' || state?.role !== 'teacher' || typeof teacher === 'undefined') return;
+    const screen = document.getElementById('screen'),
+      anchor = screen?.querySelector('.class-toolbar');
+    if (!anchor || screen.querySelector('#evoluindo-subject-manager')) return;
+    const subjects = Array.isArray(teacher.subjects) ? teacher.subjects : [];
+    const links = Array.isArray(teacher.classSubjects) ? teacher.classSubjects : [];
+    const assigned = new Set(
+      selectedClass ? links.filter(link => link.class_id === selectedClass).map(link => link.subject_id) : []
+    );
+    const section = document.createElement('section');
+    section.id = 'evoluindo-subject-manager';
+    section.className = 'evoluindo-subjects';
+    section.innerHTML = `
       <div class="subject-heading">
         <div><div class="eyebrow">ORGANIZAÇÃO PEDAGÓGICA</div><h2>Disciplinas</h2><p>Cadastre uma vez e use a disciplina em quantas turmas precisar.</p></div>
         <button type="button" class="primary" id="new-subject">+ Nova disciplina</button>
       </div>
-      ${selectedClass?`<div class="subject-assignment"><strong>Disciplinas desta turma</strong><p class="muted small">Marque as disciplinas que os alunos desta turma poderão acessar.</p><div class="subject-options">${subjects.map(subject=>`<label class="subject-option ${assigned.has(subject.id)?'assigned':''}"><input type="checkbox" data-subject-id="${escapeHtml(subject.id)}" ${assigned.has(subject.id)?'checked':''}><span><b>${escapeHtml(subject.name)}</b>${subject.description?`<small>${escapeHtml(subject.description)}</small>`:''}</span></label>`).join('')||'<div class="empty compact">Cadastre a primeira disciplina para organizar os conteúdos e campeonatos.</div>'}</div></div>`:'<div class="empty compact">Crie ou selecione uma turma para associar disciplinas.</div>'}
-      ${selectedClass?teacherLessons(assigned):''}
-      ${subjects.length?`<div class="bank-catalog"><strong>Bancos de perguntas</strong><p class="muted small">Organize as perguntas que serão reutilizadas em simulados e campeonatos.</p><div class="bank-subject-grid">${subjects.map(subject=>{const banks=(teacher.banks||[]).filter(bank=>bank.subject_id===subject.id),count=banks.reduce((total,bank)=>total+bank.question_count,0);return `<article><div><b>${escapeHtml(subject.name)}</b><small>${banks.length} banco${banks.length===1?'':'s'} · ${count} pergunta${count===1?'':'s'}</small></div><button type="button" class="ghost" data-manage-banks="${escapeHtml(subject.id)}">Gerenciar</button></article>`}).join('')}</div></div>`:''}
-      ${selectedClass?teacherSimulations(assigned):''}
-      ${selectedClass?teacherChampionships(assigned):''}
-      ${subjects.length?`<div class="subject-catalog"><span>${subjects.length} disciplina${subjects.length===1?'':'s'} no catálogo</span></div>`:''}`;
-    anchor.insertAdjacentElement('afterend',section);
-    section.querySelector('#new-subject').onclick=openSubjectForm;
-    section.querySelectorAll('[data-manage-banks]').forEach(button=>button.onclick=()=>openSubjectBanks(button.dataset.manageBanks));
-    section.querySelector('#new-simulation')?.addEventListener('click',openSimulationForm);
-    section.querySelector('#new-championship')?.addEventListener('click',openChampionshipForm);
-    section.querySelectorAll('[data-new-lesson]').forEach(button=>button.onclick=()=>openLessonForm(button.dataset.newLesson));
-    section.querySelectorAll('[data-edit-lesson]').forEach(button=>button.onclick=()=>openLessonForm(button.dataset.lessonSubject,button.dataset.editLesson));
-    section.querySelectorAll('[data-publish-lesson]').forEach(input=>input.onchange=async()=>{input.disabled=true;try{await api('set-class-lesson',{classId:selectedClass,lessonId:input.dataset.publishLesson,published:input.checked});teacher=await api('teacher-state');teacherPage();toast(input.checked?'Aula publicada para a turma.':'Aula recolhida. O progresso foi preservado.')}catch(error){input.checked=!input.checked;input.disabled=false;toast(error.message)}});
-    section.querySelectorAll('[data-delete-lesson]').forEach(button=>button.onclick=async()=>{if(!confirm('Arquivar esta aula? Ela deixará de aparecer nas turmas.'))return;button.disabled=true;try{await api('delete-lesson',{id:button.dataset.deleteLesson});teacher=await api('teacher-state');teacherPage();toast('Aula arquivada.')}catch(error){toast(error.message);button.disabled=false}});
-    section.querySelectorAll('[data-simulation-status]').forEach(button=>button.onclick=async()=>{button.disabled=true;try{await api('set-simulation-status',{id:button.dataset.simulationStatus,status:button.dataset.nextStatus});await teacherHome();toast(button.dataset.nextStatus==='open'?'Simulado aberto para a turma.':'Simulado encerrado.')}catch(error){toast(error.message);button.disabled=false}});
-    section.querySelectorAll('[data-start-championship]').forEach(button=>button.onclick=async()=>{if(!confirm('Encerrar as inscrições e iniciar o nivelamento?'))return;button.disabled=true;try{await api('start-championship',{id:button.dataset.startChampionship});await teacherHome();toast('Nivelamento iniciado para os participantes.')}catch(error){toast(error.message);button.disabled=false}});
-    section.querySelectorAll('[data-seed-demo]').forEach(button=>button.onclick=async()=>{const count=Number(prompt('Quantos alunos fictícios deseja adicionar? Escolha entre 4 e 64.','8'));if(!Number.isInteger(count)||count<4||count>64){if(!Number.isNaN(count))toast('Escolha uma quantidade entre 4 e 64.');return}if(!confirm(`Adicionar ${count} alunos fictícios nesta turma? Use este recurso somente em uma turma criada para testes.`))return;button.disabled=true;try{const result=await api('seed-demo-students',{id:button.dataset.seedDemo,count});modal(`<div class="eyebrow">MODO DEMONSTRAÇÃO</div><h2>${count} alunos fictícios adicionados.</h2><p>Todos foram inscritos neste campeonato. Se quiser entrar manualmente em uma conta, use o PIN <b>123456</b>.</p><div class="demo-credentials">${result.students.map(student=>`<article><b>${escapeHtml(student.name)}</b><code>${escapeHtml(student.access_code)}</code></article>`).join('')}</div><button type="button" class="primary full" id="close-demo-credentials">Continuar no painel</button>`);document.getElementById('close-demo-credentials').onclick=async()=>{document.getElementById('modal').close();await teacherHome()};toast('Alunos de demonstração inscritos.')}catch(error){toast(error.message);button.disabled=false}});
-    section.querySelectorAll('[data-advance-demo]').forEach(button=>button.onclick=async()=>{button.disabled=true;try{const result=await api('advance-demo-championship',{id:button.dataset.advanceDemo});toast(result.stage==='leveling'?'Respostas do nivelamento simuladas. Confira o ranking.':'Rodada simulada. A árvore foi atualizada.');setTimeout(()=>button.disabled=false,1200)}catch(error){toast(error.message);button.disabled=false}});
-    section.querySelectorAll('[data-subject-id]').forEach(input=>input.onchange=async()=>{
-      input.disabled=true;
-      const option=input.closest('.subject-option');
-      try{
-        const result=await api('set-class-subject',{classId:selectedClass,subjectId:input.dataset.subjectId,assigned:input.checked});
-        if(input.checked&&result.link)teacher.classSubjects=[...(teacher.classSubjects||[]).filter(link=>!(link.class_id===selectedClass&&link.subject_id===input.dataset.subjectId)),result.link];
-        if(!input.checked)teacher.classSubjects=(teacher.classSubjects||[]).filter(link=>!(link.class_id===selectedClass&&link.subject_id===input.dataset.subjectId));
-        const scrollTop=window.scrollY;option.classList.toggle('assigned',input.checked);input.disabled=false;teacherPage();requestAnimationFrame(()=>window.scrollTo({top:scrollTop,left:0,behavior:'auto'}));
-        toast(input.checked?'Disciplina adicionada à turma.':'Disciplina removida da turma.');
-      }catch(error){input.checked=!input.checked;input.disabled=false;toast(error.message)}
-    });
+      ${selectedClass ? `<div class="subject-assignment"><strong>Disciplinas desta turma</strong><p class="muted small">Marque as disciplinas que os alunos desta turma poderão acessar.</p><div class="subject-options">${subjects.map(subject => `<label class="subject-option ${assigned.has(subject.id) ? 'assigned' : ''}"><input type="checkbox" data-subject-id="${escapeHtml(subject.id)}" ${assigned.has(subject.id) ? 'checked' : ''}><span><b>${escapeHtml(subject.name)}</b>${subject.description ? `<small>${escapeHtml(subject.description)}</small>` : ''}</span></label>`).join('') || '<div class="empty compact">Cadastre a primeira disciplina para organizar os conteúdos e campeonatos.</div>'}</div></div>` : '<div class="empty compact">Crie ou selecione uma turma para associar disciplinas.</div>'}
+      ${selectedClass ? teacherLessons(assigned) : ''}
+      ${
+        subjects.length
+          ? `<div class="bank-catalog"><strong>Bancos de perguntas</strong><p class="muted small">Organize as perguntas que serão reutilizadas em simulados e campeonatos.</p><div class="bank-subject-grid">${subjects
+              .map(subject => {
+                const banks = (teacher.banks || []).filter(bank => bank.subject_id === subject.id),
+                  count = banks.reduce((total, bank) => total + bank.question_count, 0);
+                return `<article><div><b>${escapeHtml(subject.name)}</b><small>${banks.length} banco${banks.length === 1 ? '' : 's'} · ${count} pergunta${count === 1 ? '' : 's'}</small></div><button type="button" class="ghost" data-manage-banks="${escapeHtml(subject.id)}">Gerenciar</button></article>`;
+              })
+              .join('')}</div></div>`
+          : ''
+      }
+      ${selectedClass ? teacherSimulations(assigned) : ''}
+      ${selectedClass ? teacherChampionships(assigned) : ''}
+      ${subjects.length ? `<div class="subject-catalog"><span>${subjects.length} disciplina${subjects.length === 1 ? '' : 's'} no catálogo</span></div>` : ''}`;
+    anchor.insertAdjacentElement('afterend', section);
+    section.querySelector('#new-subject').onclick = openSubjectForm;
+    section
+      .querySelectorAll('[data-manage-banks]')
+      .forEach(button => (button.onclick = () => openSubjectBanks(button.dataset.manageBanks)));
+    section.querySelector('#new-simulation')?.addEventListener('click', openSimulationForm);
+    section.querySelector('#new-championship')?.addEventListener('click', openChampionshipForm);
+    section
+      .querySelectorAll('[data-new-lesson]')
+      .forEach(button => (button.onclick = () => openLessonForm(button.dataset.newLesson)));
+    section
+      .querySelectorAll('[data-edit-lesson]')
+      .forEach(
+        button =>
+          (button.onclick = () => openLessonForm(button.dataset.lessonSubject, button.dataset.editLesson))
+      );
+    section.querySelectorAll('[data-publish-lesson]').forEach(
+      input =>
+        (input.onchange = async () => {
+          input.disabled = true;
+          try {
+            await api('set-class-lesson', {
+              classId: selectedClass,
+              lessonId: input.dataset.publishLesson,
+              published: input.checked
+            });
+            teacher = await api('teacher-state');
+            teacherPage();
+            toast(
+              input.checked ? 'Aula publicada para a turma.' : 'Aula recolhida. O progresso foi preservado.'
+            );
+          } catch (error) {
+            input.checked = !input.checked;
+            input.disabled = false;
+            toast(error.message);
+          }
+        })
+    );
+    section.querySelectorAll('[data-delete-lesson]').forEach(
+      button =>
+        (button.onclick = async () => {
+          if (!confirm('Arquivar esta aula? Ela deixará de aparecer nas turmas.')) return;
+          button.disabled = true;
+          try {
+            await api('delete-lesson', { id: button.dataset.deleteLesson });
+            teacher = await api('teacher-state');
+            teacherPage();
+            toast('Aula arquivada.');
+          } catch (error) {
+            toast(error.message);
+            button.disabled = false;
+          }
+        })
+    );
+    section.querySelectorAll('[data-simulation-status]').forEach(
+      button =>
+        (button.onclick = async () => {
+          button.disabled = true;
+          try {
+            await api('set-simulation-status', {
+              id: button.dataset.simulationStatus,
+              status: button.dataset.nextStatus
+            });
+            await teacherHome();
+            toast(
+              button.dataset.nextStatus === 'open' ? 'Simulado aberto para a turma.' : 'Simulado encerrado.'
+            );
+          } catch (error) {
+            toast(error.message);
+            button.disabled = false;
+          }
+        })
+    );
+    section.querySelectorAll('[data-start-championship]').forEach(
+      button =>
+        (button.onclick = async () => {
+          if (!confirm('Encerrar as inscrições e iniciar o nivelamento?')) return;
+          button.disabled = true;
+          try {
+            await api('start-championship', { id: button.dataset.startChampionship });
+            await teacherHome();
+            toast('Nivelamento iniciado para os participantes.');
+          } catch (error) {
+            toast(error.message);
+            button.disabled = false;
+          }
+        })
+    );
+    section.querySelectorAll('[data-seed-demo]').forEach(
+      button =>
+        (button.onclick = async () => {
+          const count = Number(
+            prompt('Quantos alunos fictícios deseja adicionar? Escolha entre 4 e 64.', '8')
+          );
+          if (!Number.isInteger(count) || count < 4 || count > 64) {
+            if (!Number.isNaN(count)) toast('Escolha uma quantidade entre 4 e 64.');
+            return;
+          }
+          if (
+            !confirm(
+              `Adicionar ${count} alunos fictícios nesta turma? Use este recurso somente em uma turma criada para testes.`
+            )
+          )
+            return;
+          button.disabled = true;
+          try {
+            const result = await api('seed-demo-students', { id: button.dataset.seedDemo, count });
+            modal(
+              `<div class="eyebrow">MODO DEMONSTRAÇÃO</div><h2>${count} alunos fictícios adicionados.</h2><p>Todos foram inscritos neste campeonato. Se quiser entrar manualmente em uma conta, use o PIN <b>123456</b>.</p><div class="demo-credentials">${result.students.map(student => `<article><b>${escapeHtml(student.name)}</b><code>${escapeHtml(student.access_code)}</code></article>`).join('')}</div><button type="button" class="primary full" id="close-demo-credentials">Continuar no painel</button>`
+            );
+            document.getElementById('close-demo-credentials').onclick = async () => {
+              document.getElementById('modal').close();
+              await teacherHome();
+            };
+            toast('Alunos de demonstração inscritos.');
+          } catch (error) {
+            toast(error.message);
+            button.disabled = false;
+          }
+        })
+    );
+    section.querySelectorAll('[data-advance-demo]').forEach(
+      button =>
+        (button.onclick = async () => {
+          button.disabled = true;
+          try {
+            const result = await api('advance-demo-championship', { id: button.dataset.advanceDemo });
+            toast(
+              result.stage === 'leveling'
+                ? 'Respostas do nivelamento simuladas. Confira o ranking.'
+                : 'Rodada simulada. A árvore foi atualizada.'
+            );
+            setTimeout(() => (button.disabled = false), 1200);
+          } catch (error) {
+            toast(error.message);
+            button.disabled = false;
+          }
+        })
+    );
+    section.querySelectorAll('[data-subject-id]').forEach(
+      input =>
+        (input.onchange = async () => {
+          input.disabled = true;
+          const option = input.closest('.subject-option');
+          try {
+            const result = await api('set-class-subject', {
+              classId: selectedClass,
+              subjectId: input.dataset.subjectId,
+              assigned: input.checked
+            });
+            if (input.checked && result.link)
+              teacher.classSubjects = [
+                ...(teacher.classSubjects || []).filter(
+                  link => !(link.class_id === selectedClass && link.subject_id === input.dataset.subjectId)
+                ),
+                result.link
+              ];
+            if (!input.checked)
+              teacher.classSubjects = (teacher.classSubjects || []).filter(
+                link => !(link.class_id === selectedClass && link.subject_id === input.dataset.subjectId)
+              );
+            const scrollTop = window.scrollY;
+            option.classList.toggle('assigned', input.checked);
+            input.disabled = false;
+            teacherPage();
+            requestAnimationFrame(() => window.scrollTo({ top: scrollTop, left: 0, behavior: 'auto' }));
+            toast(input.checked ? 'Disciplina adicionada à turma.' : 'Disciplina removida da turma.');
+          } catch (error) {
+            input.checked = !input.checked;
+            input.disabled = false;
+            toast(error.message);
+          }
+        })
+    );
   }
 
-  function teacherLessons(assigned){
-    const subjects=(teacher.subjects||[]).filter(subject=>assigned.has(subject.id)),links=teacher.classLessons||[],lessons=(teacher.lessons||[]).filter(lesson=>assigned.has(lesson.subject_id));
-    return `<div class="lesson-manager"><div class="subject-heading"><div><strong>Aulas e conteúdos</strong><p class="muted small">Crie aulas na disciplina e publique apenas nas turmas desejadas.</p></div></div><div class="lesson-subjects">${subjects.map(subject=>{const items=lessons.filter(lesson=>lesson.subject_id===subject.id).sort((a,b)=>a.position-b.position);return `<section><div class="lesson-subject-heading"><div><b>${escapeHtml(subject.name)}</b><small>${items.length} aula${items.length===1?'':'s'} no catálogo</small></div><button type="button" class="ghost" data-new-lesson="${escapeHtml(subject.id)}">+ Nova aula</button></div><div class="lesson-catalog">${items.map(lesson=>{const published=links.some(link=>link.class_id===selectedClass&&link.lesson_id===lesson.id&&link.published);return `<article><label class="lesson-publish"><input type="checkbox" data-publish-lesson="${escapeHtml(lesson.id)}" ${published?'checked':''}><span>${published?'Publicada':'Não publicada'}</span></label><div><b>${escapeHtml(lesson.title)}</b><small>${lesson.minutes} min · ${lesson.legacy_lesson_id?'Aula interativa Evoluindo':'Conteúdo personalizado'}</small></div>${lesson.legacy_lesson_id?'<span class="system-content">CONTEÚDO BASE</span>':`<div class="lesson-actions"><button type="button" class="text-btn" data-edit-lesson="${escapeHtml(lesson.id)}" data-lesson-subject="${escapeHtml(subject.id)}">Editar</button><button type="button" class="text-btn danger" data-delete-lesson="${escapeHtml(lesson.id)}">Arquivar</button></div>`}</article>`}).join('')||'<div class="empty compact">Nenhuma aula cadastrada nesta disciplina.</div>'}</div></section>`}).join('')||'<div class="empty compact">Associe uma disciplina à turma para organizar suas aulas.</div>'}</div></div>`;
+  function teacherLessons(assigned) {
+    const subjects = (teacher.subjects || []).filter(subject => assigned.has(subject.id)),
+      links = teacher.classLessons || [],
+      lessons = (teacher.lessons || []).filter(lesson => assigned.has(lesson.subject_id));
+    return `<div class="lesson-manager"><div class="subject-heading"><div><strong>Aulas e conteúdos</strong><p class="muted small">Crie aulas na disciplina e publique apenas nas turmas desejadas.</p></div></div><div class="lesson-subjects">${
+      subjects
+        .map(subject => {
+          const items = lessons
+            .filter(lesson => lesson.subject_id === subject.id)
+            .sort((a, b) => a.position - b.position);
+          return `<section><div class="lesson-subject-heading"><div><b>${escapeHtml(subject.name)}</b><small>${items.length} aula${items.length === 1 ? '' : 's'} no catálogo</small></div><button type="button" class="ghost" data-new-lesson="${escapeHtml(subject.id)}">+ Nova aula</button></div><div class="lesson-catalog">${
+            items
+              .map(lesson => {
+                const published = links.some(
+                  link => link.class_id === selectedClass && link.lesson_id === lesson.id && link.published
+                );
+                return `<article><label class="lesson-publish"><input type="checkbox" data-publish-lesson="${escapeHtml(lesson.id)}" ${published ? 'checked' : ''}><span>${published ? 'Publicada' : 'Não publicada'}</span></label><div><b>${escapeHtml(lesson.title)}</b><small>${lesson.minutes} min · ${lesson.legacy_lesson_id ? 'Aula interativa Evoluindo' : 'Conteúdo personalizado'}</small></div>${lesson.legacy_lesson_id ? '<span class="system-content">CONTEÚDO BASE</span>' : `<div class="lesson-actions"><button type="button" class="text-btn" data-edit-lesson="${escapeHtml(lesson.id)}" data-lesson-subject="${escapeHtml(subject.id)}">Editar</button><button type="button" class="text-btn danger" data-delete-lesson="${escapeHtml(lesson.id)}">Arquivar</button></div>`}</article>`;
+              })
+              .join('') || '<div class="empty compact">Nenhuma aula cadastrada nesta disciplina.</div>'
+          }</div></section>`;
+        })
+        .join('') ||
+      '<div class="empty compact">Associe uma disciplina à turma para organizar suas aulas.</div>'
+    }</div></div>`;
   }
 
-  function openLessonForm(subjectId,id=null){
-    const lesson=id?(teacher.lessons||[]).find(item=>item.id===id):null,subject=(teacher.subjects||[]).find(item=>item.id===subjectId);modal(`<div class="eyebrow">${lesson?'EDITAR AULA':'NOVA AULA'}</div><h2>${escapeHtml(subject?.name||'Conteúdo')}</h2><p>Este conteúdo poderá ser publicado de forma independente em cada turma.</p><form id="lesson-form"><label>Título<input name="title" minlength="3" maxlength="120" required value="${escapeHtml(lesson?.title||'')}"></label><label>Descrição curta<input name="subtitle" maxlength="300" value="${escapeHtml(lesson?.subtitle||'')}"></label><div class="form-columns"><label>Duração em minutos<input name="minutes" type="number" min="5" max="600" required value="${lesson?.minutes||50}"></label><label>Tópicos <span class="muted">(separados por vírgula)</span><input name="topics" maxlength="500" value="${escapeHtml((lesson?.topics||[]).join(', '))}"></label></div><label>Conteúdo da aula<textarea name="content" minlength="20" maxlength="12000" rows="12" required placeholder="Organize explicações, orientações e atividades da aula.">${escapeHtml(lesson?.content||'')}</textarea></label><p id="lesson-error" class="form-error" role="alert"></p><button type="submit" class="primary">${lesson?'Salvar alterações':'Cadastrar aula'}</button></form>`);document.getElementById('lesson-form').onsubmit=async event=>{event.preventDefault();event.submitter.disabled=true;const values=Object.fromEntries(new FormData(event.currentTarget));try{await api('save-lesson',{id:lesson?.id,subjectId,...values,minutes:Number(values.minutes)});document.getElementById('modal').close();teacher=await api('teacher-state');teacherPage();toast(lesson?'Aula atualizada.':'Aula cadastrada no catálogo.')}catch(error){document.getElementById('lesson-error').textContent=error.message;event.submitter.disabled=false}};
-  }
-
-  function teacherSimulations(assigned){
-    const simulations=(teacher.simulations||[]).filter(item=>item.class_id===selectedClass),availableSubjects=teacher.subjects.filter(subject=>assigned.has(subject.id));
-    return `<div class="simulation-manager"><div class="subject-heading"><div><strong>Simulados da turma</strong><p class="muted small">Use uma cópia congelada das perguntas e conceda XP pela pontuação.</p></div><button type="button" class="primary" id="new-simulation" ${availableSubjects.length?'':'disabled'}>+ Criar simulado</button></div><div class="simulation-grid">${simulations.map(item=>`<article><span class="simulation-status ${item.status}">${item.status==='draft'?'Rascunho':item.status==='open'?'Aberto':'Encerrado'}</span><h3>${escapeHtml(item.title)}</h3><p>${item.question_count} perguntas · até ${item.max_xp} XP</p><small>${item.attempt_count} conclusão${item.attempt_count===1?'':'ões'} · banco rev. ${item.bank_revision}</small>${item.status!=='closed'?`<button type="button" class="${item.status==='draft'?'primary':'ghost'}" data-simulation-status="${escapeHtml(item.id)}" data-next-status="${item.status==='draft'?'open':'closed'}">${item.status==='draft'?'Abrir para a turma':'Encerrar simulado'}</button>`:''}</article>`).join('')||'<div class="empty compact">Nenhum simulado criado para esta turma.</div>'}</div></div>`;
-  }
-
-  function openSimulationForm(){
-    const assigned=new Set((teacher.classSubjects||[]).filter(link=>link.class_id===selectedClass).map(link=>link.subject_id)),subjects=teacher.subjects.filter(subject=>assigned.has(subject.id)),banks=(teacher.banks||[]).filter(bank=>assigned.has(bank.subject_id)&&bank.question_count>0);
-    modal(`<div class="eyebrow">NOVO SIMULADO</div><h2>Prática com XP.</h2><p>As perguntas sorteadas ficarão congeladas nesta versão do simulado.</p><form id="simulation-form"><label>Título<input name="title" minlength="3" maxlength="100" required placeholder="Ex.: Revisão da Unidade 1"></label><label>Disciplina<select name="subjectId" id="simulation-subject" required>${subjects.map(subject=>`<option value="${escapeHtml(subject.id)}">${escapeHtml(subject.name)}</option>`).join('')}</select></label><label>Banco de perguntas<select name="bankId" id="simulation-bank" required></select></label><div class="form-columns"><label>Quantidade de perguntas<input name="questionCount" type="number" min="1" max="50" required value="${Math.min(10,banks[0]?.question_count||1)}"></label><label>XP máximo<input name="maxXp" type="number" min="0" max="1000" required value="100"></label></div><p class="muted small">O simulado nasce como rascunho. Confira os dados antes de abri-lo para a turma.</p><p id="simulation-error" class="form-error" role="alert"></p><button type="submit" class="primary">Criar rascunho</button></form>`);
-    const subjectSelect=document.getElementById('simulation-subject'),bankSelect=document.getElementById('simulation-bank'),countInput=document.querySelector('#simulation-form [name=questionCount]');
-    const updateBanks=()=>{const filtered=banks.filter(bank=>bank.subject_id===subjectSelect.value);bankSelect.innerHTML=filtered.map(bank=>`<option value="${escapeHtml(bank.id)}" data-count="${bank.question_count}">${escapeHtml(bank.name)} · ${bank.question_count} perguntas</option>`).join('');bankSelect.disabled=!filtered.length;updateCount()};
-    const updateCount=()=>{const count=Number(bankSelect.selectedOptions[0]?.dataset.count||0);countInput.max=count||1;countInput.value=Math.min(Number(countInput.value)||10,count||1)};
-    subjectSelect.onchange=updateBanks;bankSelect.onchange=updateCount;updateBanks();
-    document.getElementById('simulation-form').onsubmit=async event=>{event.preventDefault();event.submitter.disabled=true;const values=Object.fromEntries(new FormData(event.currentTarget));try{await api('create-simulation',{classId:selectedClass,...values,questionCount:Number(values.questionCount),maxXp:Number(values.maxXp)});document.getElementById('modal').close();await teacherHome();toast('Simulado criado como rascunho.')}catch(error){document.getElementById('simulation-error').textContent=error.message;event.submitter.disabled=false}};
-  }
-
-  function teacherChampionships(assigned){
-    const championships=(teacher.championships||[]).filter(item=>item.class_id===selectedClass),available=teacher.subjects.some(subject=>assigned.has(subject.id)&&(teacher.banks||[]).some(bank=>bank.subject_id===subject.id&&bank.question_count));
-    return `<div class="championship-manager"><div class="subject-heading"><div><strong>Campeonatos e duelos</strong><p class="muted small">Abra somente o campeonato que deseja acompanhar.</p></div><button type="button" class="primary" id="new-championship" ${available?'':'disabled'}>+ Criar campeonato</button></div><div class="championship-grid">${championships.map(item=>`<article class="teacher-championship-card" data-championship-id="${escapeHtml(item.id)}" data-championship-status="${item.status}"><details class="championship-disclosure"><summary><span class="simulation-status ${['leveling','active'].includes(item.status)?'open':item.status==='finished'?'closed':''}">${item.status==='registration'?'Inscrições':item.status==='leveling'?'Nivelamento':item.status==='active'?'Mata-mata':'Finalizado'}</span><div><h3>${escapeHtml(item.title)}</h3><p>${item.participant_count} participante${item.participant_count===1?'':'s'} · ${item.leveling_question_count||item.question_count} perguntas no nivelamento · ${item.question_count} por duelo</p></div><span class="championship-chevron" aria-hidden="true">⌄</span></summary><div class="championship-disclosure-body"><small>${item.duel_xp} XP por duelo · +${item.winner_bonus} XP ao vencedor</small>${item.status==='registration'?`<div class="demo-actions"><button type="button" class="ghost" data-seed-demo="${escapeHtml(item.id)}">+ Alunos de demonstração</button><button type="button" class="primary" data-start-championship="${escapeHtml(item.id)}" ${item.participant_count<2?'disabled':''}>Iniciar nivelamento</button></div>`:`<button type="button" class="ghost demo-advance" data-advance-demo="${escapeHtml(item.id)}">Simular próxima etapa dos alunos demo</button><div class="teacher-live-bracket" data-live-bracket="${escapeHtml(item.id)}"><span class="muted small">Abra o campeonato para carregar a árvore…</span></div>`}</div></details></article>`).join('')||'<div class="empty compact">Nenhum campeonato criado para esta turma.</div>'}</div></div>`;
-  }
-
-  function openChampionshipForm(){
-    const assigned=new Set((teacher.classSubjects||[]).filter(link=>link.class_id===selectedClass).map(link=>link.subject_id)),subjects=teacher.subjects.filter(subject=>assigned.has(subject.id)),banks=(teacher.banks||[]).filter(bank=>assigned.has(bank.subject_id)&&bank.question_count>0);
-    modal(`<div class="eyebrow">NOVO CAMPEONATO</div><h2>Prepare os duelos da turma.</h2><p>Os alunos se inscrevem com a conta que já utilizam na turma.</p><form id="championship-form"><label>Nome do campeonato<input name="title" minlength="3" maxlength="100" required placeholder="Ex.: Copa do Conhecimento"></label><label>Disciplina<select name="subjectId" id="championship-subject" required>${subjects.map(subject=>`<option value="${escapeHtml(subject.id)}">${escapeHtml(subject.name)}</option>`).join('')}</select></label><label>Banco de perguntas<select name="bankId" id="championship-bank" required></select></label><div class="form-columns"><label>Perguntas por duelo<input name="questionCount" type="number" min="1" max="20" required value="${Math.min(10,banks[0]?.question_count||1)}"></label><label>XP por participação<input name="duelXp" type="number" min="0" max="500" required value="40"></label><label>Bônus do vencedor<input name="winnerBonus" type="number" min="0" max="500" required value="20"></label></div><p id="championship-error" class="form-error" role="alert"></p><button type="submit" class="primary">Abrir inscrições</button></form>`);
-    const subjectSelect=document.getElementById('championship-subject'),bankSelect=document.getElementById('championship-bank'),countInput=document.querySelector('#championship-form [name=questionCount]');const updateBanks=()=>{const filtered=banks.filter(bank=>bank.subject_id===subjectSelect.value);bankSelect.innerHTML=filtered.map(bank=>`<option value="${escapeHtml(bank.id)}" data-count="${bank.question_count}">${escapeHtml(bank.name)} · ${bank.question_count} perguntas</option>`).join('');bankSelect.disabled=!filtered.length;updateCount()};const updateCount=()=>{const count=Number(bankSelect.selectedOptions[0]?.dataset.count||0);countInput.max=Math.min(20,count||1);countInput.value=Math.min(Number(countInput.value)||10,count||1,20)};subjectSelect.onchange=updateBanks;bankSelect.onchange=updateCount;updateBanks();
-    document.getElementById('championship-form').onsubmit=async event=>{event.preventDefault();event.submitter.disabled=true;const values=Object.fromEntries(new FormData(event.currentTarget));try{await api('create-championship',{classId:selectedClass,...values,questionCount:Number(values.questionCount),duelXp:Number(values.duelXp),winnerBonus:Number(values.winnerBonus)});document.getElementById('modal').close();await teacherHome();toast('Campeonato criado. Inscrições abertas.')}catch(error){document.getElementById('championship-error').textContent=error.message;event.submitter.disabled=false}};
-  }
-
-  function openSubjectForm(){
-    modal(`<div class="eyebrow">NOVA DISCIPLINA</div><h2>Organize uma nova jornada.</h2><p>Depois de cadastrar, você poderá associar esta disciplina a qualquer turma.</p><form id="subject-form"><label>Nome da disciplina<input name="name" minlength="2" maxlength="80" required placeholder="Ex.: Matemática aplicada"></label><label>Descrição curta <span class="muted">(opcional)</span><textarea name="description" maxlength="500" rows="3" placeholder="Explique o foco da disciplina."></textarea></label><p id="subject-error" class="form-error" role="alert"></p><button class="primary" type="submit">Cadastrar disciplina</button></form>`);
-    document.getElementById('subject-form').onsubmit=async event=>{
-      event.preventDefault();event.submitter.disabled=true;
-      try{
-        const values=Object.fromEntries(new FormData(event.currentTarget));
-        const result=await api('create-subject',{...values,classId:selectedClass||undefined});
-        teacher.subjects=[...(teacher.subjects||[]),result.subject];
-        if(result.classSubject)teacher.classSubjects=[...(teacher.classSubjects||[]),result.classSubject];
+  function openLessonForm(subjectId, id = null) {
+    const lesson = id ? (teacher.lessons || []).find(item => item.id === id) : null,
+      subject = (teacher.subjects || []).find(item => item.id === subjectId);
+    modal(
+      `<div class="eyebrow">${lesson ? 'EDITAR AULA' : 'NOVA AULA'}</div><h2>${escapeHtml(subject?.name || 'Conteúdo')}</h2><p>Este conteúdo poderá ser publicado de forma independente em cada turma.</p><form id="lesson-form"><label>Título<input name="title" minlength="3" maxlength="120" required value="${escapeHtml(lesson?.title || '')}"></label><label>Descrição curta<input name="subtitle" maxlength="300" value="${escapeHtml(lesson?.subtitle || '')}"></label><div class="form-columns"><label>Duração em minutos<input name="minutes" type="number" min="5" max="600" required value="${lesson?.minutes || 50}"></label><label>Tópicos <span class="muted">(separados por vírgula)</span><input name="topics" maxlength="500" value="${escapeHtml((lesson?.topics || []).join(', '))}"></label></div><label>Conteúdo da aula<textarea name="content" minlength="20" maxlength="12000" rows="12" required placeholder="Organize explicações, orientações e atividades da aula.">${escapeHtml(lesson?.content || '')}</textarea></label><p id="lesson-error" class="form-error" role="alert"></p><button type="submit" class="primary">${lesson ? 'Salvar alterações' : 'Cadastrar aula'}</button></form>`
+    );
+    document.getElementById('lesson-form').onsubmit = async event => {
+      event.preventDefault();
+      event.submitter.disabled = true;
+      const values = Object.fromEntries(new FormData(event.currentTarget));
+      try {
+        await api('save-lesson', { id: lesson?.id, subjectId, ...values, minutes: Number(values.minutes) });
         document.getElementById('modal').close();
-        teacherPage();toast(selectedClass?'Disciplina cadastrada e adicionada à turma.':'Disciplina cadastrada.');
-      }catch(error){document.getElementById('subject-error').textContent=error.message;event.submitter.disabled=false}
+        teacher = await api('teacher-state');
+        teacherPage();
+        toast(lesson ? 'Aula atualizada.' : 'Aula cadastrada no catálogo.');
+      } catch (error) {
+        document.getElementById('lesson-error').textContent = error.message;
+        event.submitter.disabled = false;
+      }
     };
   }
 
-  function openSubjectBanks(subjectId){
-    const subject=teacher.subjects.find(item=>item.id===subjectId),banks=(teacher.banks||[]).filter(bank=>bank.subject_id===subjectId);
-    if(!subject)return toast('Disciplina não encontrada.');
-    modal(`<div class="eyebrow">${escapeHtml(subject.name)} / CONTEÚDO AVALIATIVO</div><h2>Bancos de perguntas</h2><p>Separe as perguntas por tema, unidade ou finalidade.</p><div class="bank-list">${banks.map(bank=>`<article><div><b>${escapeHtml(bank.name)}</b><p>${escapeHtml(bank.description||'Sem descrição')}</p><small>${bank.question_count} pergunta${bank.question_count===1?'':'s'} · revisão ${bank.revision}</small></div><button type="button" class="ghost" data-open-bank="${escapeHtml(bank.id)}">Abrir banco</button></article>`).join('')||'<div class="empty compact">Esta disciplina ainda não tem bancos de perguntas.</div>'}</div><form id="bank-form" class="compact-form"><h3>Criar novo banco</h3><label>Nome<input name="name" minlength="2" maxlength="100" required placeholder="Ex.: Unidade 1 · Fundamentos"></label><label>Descrição<input name="description" maxlength="500" placeholder="Como este banco será utilizado?"></label><p id="bank-error" class="form-error" role="alert"></p><button type="submit" class="primary">Criar banco</button></form>`);
-    document.querySelectorAll('[data-open-bank]').forEach(button=>button.onclick=()=>openQuestionBank(button.dataset.openBank));
-    document.getElementById('bank-form').onsubmit=async event=>{event.preventDefault();event.submitter.disabled=true;try{await api('create-question-bank',{subjectId,...Object.fromEntries(new FormData(event.currentTarget))});teacher=await api('teacher-state');openSubjectBanks(subjectId);toast('Banco de perguntas criado.')}catch(error){document.getElementById('bank-error').textContent=error.message;event.submitter.disabled=false}};
+  function teacherSimulations(assigned) {
+    const simulations = (teacher.simulations || []).filter(item => item.class_id === selectedClass),
+      availableSubjects = teacher.subjects.filter(subject => assigned.has(subject.id));
+    return `<div class="simulation-manager"><div class="subject-heading"><div><strong>Simulados da turma</strong><p class="muted small">Use uma cópia congelada das perguntas e conceda XP pela pontuação.</p></div><button type="button" class="primary" id="new-simulation" ${availableSubjects.length ? '' : 'disabled'}>+ Criar simulado</button></div><div class="simulation-grid">${simulations.map(item => `<article><span class="simulation-status ${item.status}">${item.status === 'draft' ? 'Rascunho' : item.status === 'open' ? 'Aberto' : 'Encerrado'}</span><h3>${escapeHtml(item.title)}</h3><p>${item.question_count} perguntas · até ${item.max_xp} XP</p><small>${item.attempt_count} conclusão${item.attempt_count === 1 ? '' : 'ões'} · banco rev. ${item.bank_revision}</small>${item.status !== 'closed' ? `<button type="button" class="${item.status === 'draft' ? 'primary' : 'ghost'}" data-simulation-status="${escapeHtml(item.id)}" data-next-status="${item.status === 'draft' ? 'open' : 'closed'}">${item.status === 'draft' ? 'Abrir para a turma' : 'Encerrar simulado'}</button>` : ''}</article>`).join('') || '<div class="empty compact">Nenhum simulado criado para esta turma.</div>'}</div></div>`;
   }
 
-  async function openQuestionBank(bankId){
-    try{
-      const data=await api('bank-questions',{bankId}),bank=data.bank,questions=data.questions;
-      modal(`<div class="eyebrow">BANCO DE PERGUNTAS / REVISÃO ${bank.revision}</div><div class="subject-heading"><div><h2>${escapeHtml(bank.name)}</h2><p>${escapeHtml(bank.description||'Cadastre perguntas para utilizar este banco.')}</p></div><button type="button" class="primary" id="new-question">+ Nova pergunta</button></div><div class="question-list">${questions.map((question,index)=>`<article><span>${String(index+1).padStart(2,'0')}</span><div><b>${escapeHtml(question.statement)}</b><small>${question.options.length} alternativas · resposta: ${escapeHtml(question.options[question.correct])}</small></div><div><button type="button" class="text-btn" data-edit-question="${escapeHtml(question.id)}">Editar</button><button type="button" class="text-btn danger" data-delete-question="${escapeHtml(question.id)}">Excluir</button></div></article>`).join('')||'<div class="empty compact">Nenhuma pergunta cadastrada neste banco.</div>'}</div><button type="button" class="ghost" id="back-to-banks">← Voltar aos bancos</button>`);
-      document.getElementById('new-question').onclick=()=>questionForm(bank,null);
-      document.getElementById('back-to-banks').onclick=async()=>{teacher=await api('teacher-state');openSubjectBanks(bank.subject_id)};
-      document.querySelectorAll('[data-edit-question]').forEach(button=>button.onclick=()=>questionForm(bank,questions.find(question=>question.id===button.dataset.editQuestion)));
-      document.querySelectorAll('[data-delete-question]').forEach(button=>button.onclick=async()=>{if(!confirm('Excluir esta pergunta do banco?'))return;button.disabled=true;try{await api('delete-question',{id:button.dataset.deleteQuestion});await openQuestionBank(bank.id);toast('Pergunta excluída.')}catch(error){toast(error.message);button.disabled=false}});
-    }catch(error){toast(error.message)}
+  function openSimulationForm() {
+    const assigned = new Set(
+        (teacher.classSubjects || [])
+          .filter(link => link.class_id === selectedClass)
+          .map(link => link.subject_id)
+      ),
+      subjects = teacher.subjects.filter(subject => assigned.has(subject.id)),
+      banks = (teacher.banks || []).filter(bank => assigned.has(bank.subject_id) && bank.question_count > 0);
+    modal(
+      `<div class="eyebrow">NOVO SIMULADO</div><h2>Prática com XP.</h2><p>As perguntas sorteadas ficarão congeladas nesta versão do simulado.</p><form id="simulation-form"><label>Título<input name="title" minlength="3" maxlength="100" required placeholder="Ex.: Revisão da Unidade 1"></label><label>Disciplina<select name="subjectId" id="simulation-subject" required>${subjects.map(subject => `<option value="${escapeHtml(subject.id)}">${escapeHtml(subject.name)}</option>`).join('')}</select></label><label>Banco de perguntas<select name="bankId" id="simulation-bank" required></select></label><div class="form-columns"><label>Quantidade de perguntas<input name="questionCount" type="number" min="1" max="50" required value="${Math.min(10, banks[0]?.question_count || 1)}"></label><label>XP máximo<input name="maxXp" type="number" min="0" max="1000" required value="100"></label></div><p class="muted small">O simulado nasce como rascunho. Confira os dados antes de abri-lo para a turma.</p><p id="simulation-error" class="form-error" role="alert"></p><button type="submit" class="primary">Criar rascunho</button></form>`
+    );
+    const subjectSelect = document.getElementById('simulation-subject'),
+      bankSelect = document.getElementById('simulation-bank'),
+      countInput = document.querySelector('#simulation-form [name=questionCount]');
+    const updateBanks = () => {
+      const filtered = banks.filter(bank => bank.subject_id === subjectSelect.value);
+      bankSelect.innerHTML = filtered
+        .map(
+          bank =>
+            `<option value="${escapeHtml(bank.id)}" data-count="${bank.question_count}">${escapeHtml(bank.name)} · ${bank.question_count} perguntas</option>`
+        )
+        .join('');
+      bankSelect.disabled = !filtered.length;
+      updateCount();
+    };
+    const updateCount = () => {
+      const count = Number(bankSelect.selectedOptions[0]?.dataset.count || 0);
+      countInput.max = count || 1;
+      countInput.value = Math.min(Number(countInput.value) || 10, count || 1);
+    };
+    subjectSelect.onchange = updateBanks;
+    bankSelect.onchange = updateCount;
+    updateBanks();
+    document.getElementById('simulation-form').onsubmit = async event => {
+      event.preventDefault();
+      event.submitter.disabled = true;
+      const values = Object.fromEntries(new FormData(event.currentTarget));
+      try {
+        await api('create-simulation', {
+          classId: selectedClass,
+          ...values,
+          questionCount: Number(values.questionCount),
+          maxXp: Number(values.maxXp)
+        });
+        document.getElementById('modal').close();
+        await teacherHome();
+        toast('Simulado criado como rascunho.');
+      } catch (error) {
+        document.getElementById('simulation-error').textContent = error.message;
+        event.submitter.disabled = false;
+      }
+    };
   }
 
-  function questionForm(bank,question){
-    const options=question?.options||['','','',''];
-    modal(`<div class="eyebrow">${escapeHtml(bank.name)} / ${question?'EDITAR':'NOVA'} PERGUNTA</div><h2>${question?'Revise a pergunta.':'Cadastre uma pergunta.'}</h2><form id="question-form"><label>Enunciado<textarea name="statement" minlength="5" maxlength="1000" rows="4" required placeholder="Escreva uma pergunta clara e completa.">${escapeHtml(question?.statement||'')}</textarea></label><fieldset class="answer-options"><legend>Alternativas e gabarito</legend>${options.map((option,index)=>`<label><input type="radio" name="correct" value="${index}" ${Number(question?.correct??0)===index?'checked':''} required><span>${String.fromCharCode(65+index)}</span><input name="option${index}" maxlength="300" required value="${escapeHtml(option)}" placeholder="Alternativa ${String.fromCharCode(65+index)}"></label>`).join('')}</fieldset><label>Explicação após a resposta <span class="muted">(opcional)</span><textarea name="explanation" maxlength="1500" rows="3" placeholder="Explique por que essa resposta está correta.">${escapeHtml(question?.explanation||'')}</textarea></label><p id="question-error" class="form-error" role="alert"></p><div class="button-row"><button type="submit" class="primary">Salvar pergunta</button><button type="button" class="ghost" id="cancel-question">Cancelar</button></div></form>`);
-    document.getElementById('cancel-question').onclick=()=>openQuestionBank(bank.id);
-    document.getElementById('question-form').onsubmit=async event=>{event.preventDefault();event.submitter.disabled=true;const form=new FormData(event.currentTarget),payload={bankId:bank.id,id:question?.id,statement:form.get('statement'),correct:Number(form.get('correct')),options:options.map((_,index)=>form.get('option'+index)),explanation:form.get('explanation')};try{await api('save-question',payload);await openQuestionBank(bank.id);toast(question?'Pergunta atualizada.':'Pergunta cadastrada.')}catch(error){document.getElementById('question-error').textContent=error.message;event.submitter.disabled=false}};
+  function teacherChampionships(assigned) {
+    const championships = (teacher.championships || []).filter(item => item.class_id === selectedClass),
+      available = teacher.subjects.some(
+        subject =>
+          assigned.has(subject.id) &&
+          (teacher.banks || []).some(bank => bank.subject_id === subject.id && bank.question_count)
+      );
+    return `<div class="championship-manager"><div class="subject-heading"><div><strong>Campeonatos e duelos</strong><p class="muted small">Abra somente o campeonato que deseja acompanhar.</p></div><button type="button" class="primary" id="new-championship" ${available ? '' : 'disabled'}>+ Criar campeonato</button></div><div class="championship-grid">${championships.map(item => `<article class="teacher-championship-card" data-championship-id="${escapeHtml(item.id)}" data-championship-status="${item.status}"><details class="championship-disclosure"><summary><span class="simulation-status ${['leveling', 'active'].includes(item.status) ? 'open' : item.status === 'finished' ? 'closed' : ''}">${item.status === 'registration' ? 'Inscrições' : item.status === 'leveling' ? 'Nivelamento' : item.status === 'active' ? 'Mata-mata' : 'Finalizado'}</span><div><h3>${escapeHtml(item.title)}</h3><p>${item.participant_count} participante${item.participant_count === 1 ? '' : 's'} · ${item.leveling_question_count || item.question_count} perguntas no nivelamento · ${item.question_count} por duelo</p></div><span class="championship-chevron" aria-hidden="true">⌄</span></summary><div class="championship-disclosure-body"><small>${item.duel_xp} XP por duelo · +${item.winner_bonus} XP ao vencedor</small>${item.status === 'registration' ? `<div class="demo-actions"><button type="button" class="ghost" data-seed-demo="${escapeHtml(item.id)}">+ Alunos de demonstração</button><button type="button" class="primary" data-start-championship="${escapeHtml(item.id)}" ${item.participant_count < 2 ? 'disabled' : ''}>Iniciar nivelamento</button></div>` : `<button type="button" class="ghost demo-advance" data-advance-demo="${escapeHtml(item.id)}">Simular próxima etapa dos alunos demo</button><div class="teacher-live-bracket" data-live-bracket="${escapeHtml(item.id)}"><span class="muted small">Abra o campeonato para carregar a árvore…</span></div>`}</div></details></article>`).join('') || '<div class="empty compact">Nenhum campeonato criado para esta turma.</div>'}</div></div>`;
   }
 
-  function studentSubjects(){
-    if(typeof state==='undefined'||state?.role!=='student')return;
-    const screen=document.getElementById('screen');
-    if(!screen||screen.querySelector('#student-subjects'))return;
-    const lessonGrid=screen.querySelector('.lesson-grid');
-    if(!lessonGrid)return;
-    const subjects=Array.isArray(state.subjects)?state.subjects:[];
-    const section=document.createElement('section');section.id='student-subjects';section.className='student-subjects';
-    section.innerHTML=`<div class="eyebrow">SUA TURMA</div><div class="subject-heading"><div><h2>Disciplinas</h2><p>${subjects.length?'Conteúdos disponíveis na sua jornada.':'O professor ainda não associou disciplinas a esta turma.'}</p></div></div>${subjects.length?`<div class="subject-chips">${subjects.map(subject=>`<span class="subject-chip"><img src="owl.svg" alt="">${escapeHtml(subject.name)}</span>`).join('')}</div>`:''}`;
-    lessonGrid.parentElement.insertBefore(section,lessonGrid);
+  function openChampionshipForm() {
+    const assigned = new Set(
+        (teacher.classSubjects || [])
+          .filter(link => link.class_id === selectedClass)
+          .map(link => link.subject_id)
+      ),
+      subjects = teacher.subjects.filter(subject => assigned.has(subject.id)),
+      banks = (teacher.banks || []).filter(bank => assigned.has(bank.subject_id) && bank.question_count > 0);
+    modal(
+      `<div class="eyebrow">NOVO CAMPEONATO</div><h2>Prepare os duelos da turma.</h2><p>Os alunos se inscrevem com a conta que já utilizam na turma.</p><form id="championship-form"><label>Nome do campeonato<input name="title" minlength="3" maxlength="100" required placeholder="Ex.: Copa do Conhecimento"></label><label>Disciplina<select name="subjectId" id="championship-subject" required>${subjects.map(subject => `<option value="${escapeHtml(subject.id)}">${escapeHtml(subject.name)}</option>`).join('')}</select></label><label>Banco de perguntas<select name="bankId" id="championship-bank" required></select></label><div class="form-columns"><label>Perguntas por duelo<input name="questionCount" type="number" min="1" max="20" required value="${Math.min(10, banks[0]?.question_count || 1)}"></label><label>XP por participação<input name="duelXp" type="number" min="0" max="500" required value="40"></label><label>Bônus do vencedor<input name="winnerBonus" type="number" min="0" max="500" required value="20"></label></div><p id="championship-error" class="form-error" role="alert"></p><button type="submit" class="primary">Abrir inscrições</button></form>`
+    );
+    const subjectSelect = document.getElementById('championship-subject'),
+      bankSelect = document.getElementById('championship-bank'),
+      countInput = document.querySelector('#championship-form [name=questionCount]');
+    const updateBanks = () => {
+      const filtered = banks.filter(bank => bank.subject_id === subjectSelect.value);
+      bankSelect.innerHTML = filtered
+        .map(
+          bank =>
+            `<option value="${escapeHtml(bank.id)}" data-count="${bank.question_count}">${escapeHtml(bank.name)} · ${bank.question_count} perguntas</option>`
+        )
+        .join('');
+      bankSelect.disabled = !filtered.length;
+      updateCount();
+    };
+    const updateCount = () => {
+      const count = Number(bankSelect.selectedOptions[0]?.dataset.count || 0);
+      countInput.max = Math.min(20, count || 1);
+      countInput.value = Math.min(Number(countInput.value) || 10, count || 1, 20);
+    };
+    subjectSelect.onchange = updateBanks;
+    bankSelect.onchange = updateCount;
+    updateBanks();
+    document.getElementById('championship-form').onsubmit = async event => {
+      event.preventDefault();
+      event.submitter.disabled = true;
+      const values = Object.fromEntries(new FormData(event.currentTarget));
+      try {
+        await api('create-championship', {
+          classId: selectedClass,
+          ...values,
+          questionCount: Number(values.questionCount),
+          duelXp: Number(values.duelXp),
+          winnerBonus: Number(values.winnerBonus)
+        });
+        document.getElementById('modal').close();
+        await teacherHome();
+        toast('Campeonato criado. Inscrições abertas.');
+      } catch (error) {
+        document.getElementById('championship-error').textContent = error.message;
+        event.submitter.disabled = false;
+      }
+    };
   }
 
-  function studentSimulations(){
-    if(typeof state==='undefined'||state?.role!=='student')return;const screen=document.getElementById('screen');if(!screen||screen.querySelector('#student-simulations'))return;const lessonGrid=screen.querySelector('.lesson-grid');if(!lessonGrid)return;
-    const simulations=Array.isArray(state.simulations)?state.simulations:[],attempts=Array.isArray(state.simulationAttempts)?state.simulationAttempts:[];if(!simulations.length)return;
-    const section=document.createElement('section');section.id='student-simulations';section.className='student-simulations';section.innerHTML=`<div class="eyebrow">PRÁTICA AVALIATIVA</div><div class="subject-heading"><div><h2>Simulados da turma</h2><p>Responda com atenção. O XP é concedido uma única vez.</p></div></div><div class="simulation-grid">${simulations.map(item=>{const attempt=attempts.find(value=>value.simulation_id===item.id),done=attempt?.status==='completed';return `<article><span class="simulation-status ${item.status}">${done?'Concluído':item.status==='open'?'Disponível':'Encerrado'}</span><h3>${escapeHtml(item.title)}</h3><p>${item.question_count} perguntas · até ${item.max_xp} XP</p>${done?`<strong>${attempt.score} / ${item.question_count} · +${attempt.xp} XP</strong>`:item.status==='open'?`<button type="button" class="primary" data-start-simulation="${escapeHtml(item.id)}">Começar</button>`:'<small>Este simulado foi encerrado.</small>'}</article>`}).join('')}</div>`;lessonGrid.parentElement.insertBefore(section,lessonGrid);section.querySelectorAll('[data-start-simulation]').forEach(button=>button.onclick=()=>startSimulation(button.dataset.startSimulation));
+  function openSubjectForm() {
+    modal(
+      `<div class="eyebrow">NOVA DISCIPLINA</div><h2>Organize uma nova jornada.</h2><p>Depois de cadastrar, você poderá associar esta disciplina a qualquer turma.</p><form id="subject-form"><label>Nome da disciplina<input name="name" minlength="2" maxlength="80" required placeholder="Ex.: Matemática aplicada"></label><label>Descrição curta <span class="muted">(opcional)</span><textarea name="description" maxlength="500" rows="3" placeholder="Explique o foco da disciplina."></textarea></label><p id="subject-error" class="form-error" role="alert"></p><button class="primary" type="submit">Cadastrar disciplina</button></form>`
+    );
+    document.getElementById('subject-form').onsubmit = async event => {
+      event.preventDefault();
+      event.submitter.disabled = true;
+      try {
+        const values = Object.fromEntries(new FormData(event.currentTarget));
+        const result = await api('create-subject', { ...values, classId: selectedClass || undefined });
+        teacher.subjects = [...(teacher.subjects || []), result.subject];
+        if (result.classSubject)
+          teacher.classSubjects = [...(teacher.classSubjects || []), result.classSubject];
+        document.getElementById('modal').close();
+        teacherPage();
+        toast(selectedClass ? 'Disciplina cadastrada e adicionada à turma.' : 'Disciplina cadastrada.');
+      } catch (error) {
+        document.getElementById('subject-error').textContent = error.message;
+        event.submitter.disabled = false;
+      }
+    };
   }
 
-  async function startSimulation(id){
-    try{const data=await api('simulation-start',{id});modal(`<div class="eyebrow">SIMULADO / ${data.questions.length} PERGUNTAS</div><h2>${escapeHtml(data.simulation.title)}</h2><form id="student-simulation-form"><div class="simulation-questions">${data.questions.map((question,index)=>`<fieldset><legend><span>${String(index+1).padStart(2,'0')}</span>${escapeHtml(question.statement)}</legend>${question.options.map((option,optionIndex)=>`<label><input type="radio" name="answer${index}" value="${optionIndex}" required><span>${String.fromCharCode(65+optionIndex)}</span>${escapeHtml(option)}</label>`).join('')}</fieldset>`).join('')}</div><p id="student-simulation-error" class="form-error" role="alert"></p><button type="submit" class="primary full">Concluir simulado</button></form>`);document.getElementById('student-simulation-form').onsubmit=async event=>{event.preventDefault();event.submitter.disabled=true;const form=new FormData(event.currentTarget),answers=data.questions.map((_,index)=>Number(form.get('answer'+index)));try{const response=await api('simulation-submit',{id,answers});state=response.state;updateSidebar();map();showSimulationResult(response.result)}catch(error){document.getElementById('student-simulation-error').textContent=error.message;event.submitter.disabled=false}}}catch(error){toast(error.message)}
+  function openSubjectBanks(subjectId) {
+    const subject = teacher.subjects.find(item => item.id === subjectId),
+      banks = (teacher.banks || []).filter(bank => bank.subject_id === subjectId);
+    if (!subject) return toast('Disciplina não encontrada.');
+    modal(
+      `<div class="eyebrow">${escapeHtml(subject.name)} / CONTEÚDO AVALIATIVO</div><h2>Bancos de perguntas</h2><p>Separe as perguntas por tema, unidade ou finalidade.</p><div class="bank-list">${banks.map(bank => `<article><div><b>${escapeHtml(bank.name)}</b><p>${escapeHtml(bank.description || 'Sem descrição')}</p><small>${bank.question_count} pergunta${bank.question_count === 1 ? '' : 's'} · revisão ${bank.revision}</small></div><button type="button" class="ghost" data-open-bank="${escapeHtml(bank.id)}">Abrir banco</button></article>`).join('') || '<div class="empty compact">Esta disciplina ainda não tem bancos de perguntas.</div>'}</div><form id="bank-form" class="compact-form"><h3>Criar novo banco</h3><label>Nome<input name="name" minlength="2" maxlength="100" required placeholder="Ex.: Unidade 1 · Fundamentos"></label><label>Descrição<input name="description" maxlength="500" placeholder="Como este banco será utilizado?"></label><p id="bank-error" class="form-error" role="alert"></p><button type="submit" class="primary">Criar banco</button></form>`
+    );
+    document
+      .querySelectorAll('[data-open-bank]')
+      .forEach(button => (button.onclick = () => openQuestionBank(button.dataset.openBank)));
+    document.getElementById('bank-form').onsubmit = async event => {
+      event.preventDefault();
+      event.submitter.disabled = true;
+      try {
+        await api('create-question-bank', {
+          subjectId,
+          ...Object.fromEntries(new FormData(event.currentTarget))
+        });
+        teacher = await api('teacher-state');
+        openSubjectBanks(subjectId);
+        toast('Banco de perguntas criado.');
+      } catch (error) {
+        document.getElementById('bank-error').textContent = error.message;
+        event.submitter.disabled = false;
+      }
+    };
   }
 
-  function showSimulationResult(result){modal(`<div class="eyebrow">SIMULADO CONCLUÍDO</div><h2>${result.score} de ${result.total} respostas corretas</h2><div class="simulation-xp">+${result.xp}<small>XP</small></div><div class="simulation-review">${result.review.map((item,index)=>`<details class="${item.answer===item.correct?'correct':'incorrect'}"><summary>${index+1}. ${escapeHtml(item.statement)}</summary><p>Sua resposta: <b>${escapeHtml(item.options[item.answer])}</b></p><p>Resposta correta: <b>${escapeHtml(item.options[item.correct])}</b></p>${item.explanation?`<p>${escapeHtml(item.explanation)}</p>`:''}</details>`).join('')}</div><button type="button" class="primary full" id="finish-simulation-result">Voltar para minha jornada</button>`);document.getElementById('finish-simulation-result').onclick=()=>document.getElementById('modal').close()}
-
-  function studentChampionships(){
-    if(typeof state==='undefined'||state?.role!=='student')return;const screen=document.getElementById('screen');if(!screen||screen.querySelector('#student-championships'))return;const lessonGrid=screen.querySelector('.lesson-grid');if(!lessonGrid)return;const championships=Array.isArray(state.championships)?state.championships:[];if(!championships.length)return;
-    const section=document.createElement('section');section.id='student-championships';section.className='student-championships';section.innerHTML=`<div class="eyebrow">CAMPEONATOS DA TURMA</div><div class="subject-heading"><div><h2>Duelos de conhecimento</h2><p>Entre, faça o nivelamento e acompanhe seu caminho até a final.</p></div></div><div class="championship-grid">${championships.map(championship=>championshipCard(championship)).join('')}</div>`;lessonGrid.parentElement.insertBefore(section,lessonGrid);section.querySelectorAll('[data-join-championship]').forEach(button=>button.onclick=async()=>{button.disabled=true;try{const response=await api('championship-join',{id:button.dataset.joinChampionship});state=response.state;map();toast('Inscrição confirmada no campeonato.')}catch(error){toast(error.message);button.disabled=false}});section.querySelectorAll('[data-start-leveling]').forEach(button=>button.onclick=()=>startLeveling(button.dataset.startLeveling));section.querySelectorAll('[data-play-duel]').forEach(button=>button.onclick=()=>startDuel(button.dataset.playDuel));
+  async function openQuestionBank(bankId) {
+    try {
+      const data = await api('bank-questions', { bankId }),
+        bank = data.bank,
+        questions = data.questions;
+      modal(
+        `<div class="eyebrow">BANCO DE PERGUNTAS / REVISÃO ${bank.revision}</div><div class="subject-heading"><div><h2>${escapeHtml(bank.name)}</h2><p>${escapeHtml(bank.description || 'Cadastre perguntas para utilizar este banco.')}</p></div><button type="button" class="primary" id="new-question">+ Nova pergunta</button></div><div class="question-list">${questions.map((question, index) => `<article><span>${String(index + 1).padStart(2, '0')}</span><div><b>${escapeHtml(question.statement)}</b><small>${question.options.length} alternativas · resposta: ${escapeHtml(question.options[question.correct])}</small></div><div><button type="button" class="text-btn" data-edit-question="${escapeHtml(question.id)}">Editar</button><button type="button" class="text-btn danger" data-delete-question="${escapeHtml(question.id)}">Excluir</button></div></article>`).join('') || '<div class="empty compact">Nenhuma pergunta cadastrada neste banco.</div>'}</div><button type="button" class="ghost" id="back-to-banks">← Voltar aos bancos</button>`
+      );
+      document.getElementById('new-question').onclick = () => questionForm(bank, null);
+      document.getElementById('back-to-banks').onclick = async () => {
+        teacher = await api('teacher-state');
+        openSubjectBanks(bank.subject_id);
+      };
+      document.querySelectorAll('[data-edit-question]').forEach(
+        button =>
+          (button.onclick = () =>
+            questionForm(
+              bank,
+              questions.find(question => question.id === button.dataset.editQuestion)
+            ))
+      );
+      document.querySelectorAll('[data-delete-question]').forEach(
+        button =>
+          (button.onclick = async () => {
+            if (!confirm('Excluir esta pergunta do banco?')) return;
+            button.disabled = true;
+            try {
+              await api('delete-question', { id: button.dataset.deleteQuestion });
+              await openQuestionBank(bank.id);
+              toast('Pergunta excluída.');
+            } catch (error) {
+              toast(error.message);
+              button.disabled = false;
+            }
+          })
+      );
+    } catch (error) {
+      toast(error.message);
+    }
   }
 
-  function unifiedXpViews(){
-    if(typeof state==='undefined')return;
-    if(state.role==='teacher'&&typeof report!=='undefined'&&report){const rows=document.querySelectorAll('.roster tbody tr');rows.forEach((row,index)=>{const student=report.students[index];if(!student)return;const activity=(report.submissions||[]).filter(item=>item.student_id===student.id&&item.status==='approved').reduce((total,item)=>total+Number(item.xp||0),0),extra=(report.xpEvents||[]).filter(item=>item.student_id===student.id).reduce((total,item)=>total+Number(item.xp||0),0),cell=row.children[1];if(cell&&!cell.dataset.unifiedXp){cell.dataset.unifiedXp='true';cell.innerHTML=`<strong>${Number(activity+extra).toLocaleString('pt-BR')}</strong>${extra?`<small>${extra.toLocaleString('pt-BR')} XP em simulados e duelos</small>`:''}`}});return}
-    if(state.role==='student'){const screen=document.getElementById('screen'),passport=screen?.querySelector('.passport-card');if(!passport||screen.querySelector('#xp-history'))return;const events=state.xpEvents||[];if(!events.length)return;const section=document.createElement('section');section.id='xp-history';section.className='xp-history';section.innerHTML=`<div class="eyebrow">EXTRATO DE XP</div><h2>Simulados e duelos</h2><div>${events.slice().reverse().map(event=>`<article><span>${escapeHtml(event.description)}</span><strong>+${Number(event.xp).toLocaleString('pt-BR')} XP</strong></article>`).join('')}</div>`;passport.insertAdjacentElement('afterend',section)}
+  function questionForm(bank, question) {
+    const options = question?.options || ['', '', '', ''];
+    modal(
+      `<div class="eyebrow">${escapeHtml(bank.name)} / ${question ? 'EDITAR' : 'NOVA'} PERGUNTA</div><h2>${question ? 'Revise a pergunta.' : 'Cadastre uma pergunta.'}</h2><form id="question-form"><label>Enunciado<textarea name="statement" minlength="5" maxlength="1000" rows="4" required placeholder="Escreva uma pergunta clara e completa.">${escapeHtml(question?.statement || '')}</textarea></label><fieldset class="answer-options"><legend>Alternativas e gabarito</legend>${options.map((option, index) => `<label><input type="radio" name="correct" value="${index}" ${Number(question?.correct ?? 0) === index ? 'checked' : ''} required><span>${String.fromCharCode(65 + index)}</span><input name="option${index}" maxlength="300" required value="${escapeHtml(option)}" placeholder="Alternativa ${String.fromCharCode(65 + index)}"></label>`).join('')}</fieldset><label>Explicação após a resposta <span class="muted">(opcional)</span><textarea name="explanation" maxlength="1500" rows="3" placeholder="Explique por que essa resposta está correta.">${escapeHtml(question?.explanation || '')}</textarea></label><p id="question-error" class="form-error" role="alert"></p><div class="button-row"><button type="submit" class="primary">Salvar pergunta</button><button type="button" class="ghost" id="cancel-question">Cancelar</button></div></form>`
+    );
+    document.getElementById('cancel-question').onclick = () => openQuestionBank(bank.id);
+    document.getElementById('question-form').onsubmit = async event => {
+      event.preventDefault();
+      event.submitter.disabled = true;
+      const form = new FormData(event.currentTarget),
+        payload = {
+          bankId: bank.id,
+          id: question?.id,
+          statement: form.get('statement'),
+          correct: Number(form.get('correct')),
+          options: options.map((_, index) => form.get('option' + index)),
+          explanation: form.get('explanation')
+        };
+      try {
+        await api('save-question', payload);
+        await openQuestionBank(bank.id);
+        toast(question ? 'Pergunta atualizada.' : 'Pergunta cadastrada.');
+      } catch (error) {
+        document.getElementById('question-error').textContent = error.message;
+        event.submitter.disabled = false;
+      }
+    };
   }
 
-  function coreCourseContext(){
-    if(typeof state==='undefined')return;const screen=document.getElementById('screen');if(!screen)return;
-    if(state.role==='teacher'&&typeof teacher!=='undefined'&&selectedClass){const grid=screen.querySelector('.release-grid');if(!grid)return;const heading=grid.previousElementSibling;heading?.remove();grid.remove();return}
-    if(state.role==='student'&&!state.courseSubject){const grid=screen.querySelector('.lesson-grid');if(grid&&!grid.dataset.unlinked){grid.dataset.unlinked='true';grid.innerHTML='<div class="empty course-unlinked"><h2>Nenhuma trilha de aulas vinculada.</h2><p>Quando o professor associar uma disciplina com aulas a esta turma, o conteúdo aparecerá aqui.</p></div>'}}
+  function studentSubjects() {
+    if (typeof state === 'undefined' || state?.role !== 'student') return;
+    const screen = document.getElementById('screen');
+    if (!screen || screen.querySelector('#student-subjects')) return;
+    const lessonGrid = screen.querySelector('.lesson-grid');
+    if (!lessonGrid) return;
+    const subjects = Array.isArray(state.subjects) ? state.subjects : [];
+    const section = document.createElement('section');
+    section.id = 'student-subjects';
+    section.className = 'student-subjects';
+    section.innerHTML = `<div class="eyebrow">SUA TURMA</div><div class="subject-heading"><div><h2>Disciplinas</h2><p>${subjects.length ? 'Conteúdos disponíveis na sua jornada.' : 'O professor ainda não associou disciplinas a esta turma.'}</p></div></div>${subjects.length ? `<div class="subject-chips">${subjects.map(subject => `<span class="subject-chip"><img src="owl.svg" alt="">${escapeHtml(subject.name)}</span>`).join('')}</div>` : ''}`;
+    lessonGrid.parentElement.insertBefore(section, lessonGrid);
   }
 
-  function championshipCard(championship){
-    const attempts=state.duelAttempts||[],me=championship.participants.find(item=>item.student_id===state.student.id),myMatches=championship.matches.filter(match=>[match.player1_id,match.player2_id].includes(state.student.id)),active=myMatches.find(match=>match.status==='open'),attempt=active&&attempts.find(item=>item.match_id===active.id),champion=championship.participants.find(item=>item.student_id===championship.champion_id),runner=championship.participants.find(item=>item.student_id===championship.runner_up_id),third=championship.participants.find(item=>item.student_id===championship.third_id);
-    return `<article class="championship-card"><span class="simulation-status ${['leveling','active'].includes(championship.status)?'open':championship.status==='finished'?'closed':''}">${championship.status==='registration'?'Inscrições abertas':championship.status==='leveling'?'Nivelamento':championship.status==='active'?'Mata-mata':'Finalizado'}</span><h3>${escapeHtml(championship.title)}</h3><p>${championship.participant_count} participantes · ${championship.leveling_question_count||championship.question_count} perguntas no nivelamento · ${championship.question_count} por duelo</p>${championship.status==='registration'?(championship.joined?'<strong>Inscrição confirmada</strong>':`<button type="button" class="primary" data-join-championship="${escapeHtml(championship.id)}">Quero participar</button>`):''}${championship.status==='leveling'&&me?(me.leveling_status==='completed'?`<strong>Nivelamento concluído · ${me.leveling_score} acertos</strong>`:`<button type="button" class="primary" data-start-leveling="${escapeHtml(championship.id)}">Responder nivelamento</button>`):''}${active?(attempt?.status==='completed'?'<strong>Respostas enviadas · aguardando oponente</strong>':`<button type="button" class="primary duel-action" data-play-duel="${escapeHtml(active.id)}">Responder meu duelo</button>`):''}${['active','finished'].includes(championship.status)?`<div class="student-live-bracket" data-student-bracket="${escapeHtml(championship.id)}">${renderBracket(championship)}</div>`:''}${championship.status==='finished'?`<div class="podium"><span><b>1º</b>${escapeHtml(champion?.name||'—')}</span><span><b>2º</b>${escapeHtml(runner?.name||'—')}</span>${third?`<span><b>3º</b>${escapeHtml(third.name)}</span>`:''}</div>`:''}</article>`;
+  function studentSimulations() {
+    if (typeof state === 'undefined' || state?.role !== 'student') return;
+    const screen = document.getElementById('screen');
+    if (!screen || screen.querySelector('#student-simulations')) return;
+    const lessonGrid = screen.querySelector('.lesson-grid');
+    if (!lessonGrid) return;
+    const simulations = Array.isArray(state.simulations) ? state.simulations : [],
+      attempts = Array.isArray(state.simulationAttempts) ? state.simulationAttempts : [];
+    if (!simulations.length) return;
+    const section = document.createElement('section');
+    section.id = 'student-simulations';
+    section.className = 'student-simulations';
+    section.innerHTML = `<div class="eyebrow">PRÁTICA AVALIATIVA</div><div class="subject-heading"><div><h2>Simulados da turma</h2><p>Responda com atenção. O XP é concedido uma única vez.</p></div></div><div class="simulation-grid">${simulations
+      .map(item => {
+        const attempt = attempts.find(value => value.simulation_id === item.id),
+          done = attempt?.status === 'completed';
+        return `<article><span class="simulation-status ${item.status}">${done ? 'Concluído' : item.status === 'open' ? 'Disponível' : 'Encerrado'}</span><h3>${escapeHtml(item.title)}</h3><p>${item.question_count} perguntas · até ${item.max_xp} XP</p>${done ? `<strong>${attempt.score} / ${item.question_count} · +${attempt.xp} XP</strong>` : item.status === 'open' ? `<button type="button" class="primary" data-start-simulation="${escapeHtml(item.id)}">Começar</button>` : '<small>Este simulado foi encerrado.</small>'}</article>`;
+      })
+      .join('')}</div>`;
+    lessonGrid.parentElement.insertBefore(section, lessonGrid);
+    section
+      .querySelectorAll('[data-start-simulation]')
+      .forEach(button => (button.onclick = () => startSimulation(button.dataset.startSimulation)));
   }
 
-  async function startLeveling(id){
-    try{const data=await api('leveling-start',{id});modal(`<div class="eyebrow">ETAPA DE NIVELAMENTO</div><h2>${escapeHtml(data.championship.title)}</h2><p>Todos recebem as mesmas perguntas. Acertos e tempo total definem o ranking.</p><form id="leveling-form"><div class="simulation-questions">${data.questions.map((question,index)=>`<fieldset><legend><span>${String(index+1).padStart(2,'0')}</span>${escapeHtml(question.statement)}</legend>${question.options.map((option,optionIndex)=>`<label><input type="radio" name="answer${index}" value="${optionIndex}" required><span>${String.fromCharCode(65+optionIndex)}</span>${escapeHtml(option)}</label>`).join('')}</fieldset>`).join('')}</div><p id="leveling-error" class="form-error" role="alert"></p><button type="submit" class="primary full">Concluir nivelamento</button></form>`);document.getElementById('leveling-form').onsubmit=async event=>{event.preventDefault();event.submitter.disabled=true;const form=new FormData(event.currentTarget),answers=data.questions.map((_,index)=>Number(form.get('answer'+index)));try{const response=await api('leveling-submit',{id,answers});state=response.state;updateSidebar();map();toast(`Nivelamento concluído: ${response.score} de ${response.total} acertos.`);document.getElementById('modal').close()}catch(error){document.getElementById('leveling-error').textContent=error.message;event.submitter.disabled=false}}}catch(error){toast(error.message)}
+  async function startSimulation(id) {
+    try {
+      const data = await api('simulation-start', { id });
+      modal(
+        `<div class="eyebrow">SIMULADO / ${data.questions.length} PERGUNTAS</div><h2>${escapeHtml(data.simulation.title)}</h2><form id="student-simulation-form"><div class="simulation-questions">${data.questions.map((question, index) => `<fieldset><legend><span>${String(index + 1).padStart(2, '0')}</span>${escapeHtml(question.statement)}</legend>${question.options.map((option, optionIndex) => `<label><input type="radio" name="answer${index}" value="${optionIndex}" required><span>${String.fromCharCode(65 + optionIndex)}</span>${escapeHtml(option)}</label>`).join('')}</fieldset>`).join('')}</div><p id="student-simulation-error" class="form-error" role="alert"></p><button type="submit" class="primary full">Concluir simulado</button></form>`
+      );
+      document.getElementById('student-simulation-form').onsubmit = async event => {
+        event.preventDefault();
+        event.submitter.disabled = true;
+        const form = new FormData(event.currentTarget),
+          answers = data.questions.map((_, index) => Number(form.get('answer' + index)));
+        try {
+          const response = await api('simulation-submit', { id, answers });
+          state = response.state;
+          updateSidebar();
+          map();
+          showSimulationResult(response.result);
+        } catch (error) {
+          document.getElementById('student-simulation-error').textContent = error.message;
+          event.submitter.disabled = false;
+        }
+      };
+    } catch (error) {
+      toast(error.message);
+    }
   }
 
-  function renderBracket(championship){const rounds=[...new Set(championship.matches.filter(match=>match.kind==='main').map(match=>match.round))].sort((a,b)=>a-b);return `<div class="duel-bracket">${rounds.map(round=>`<div><small>Rodada ${round}</small>${championship.matches.filter(match=>match.kind==='main'&&match.round===round).map(match=>`<span class="duel-pair"><i class="${match.winner_id===match.player1_id?'winner':''}">${escapeHtml(match.player1_name||'Avanço automático')}${match.player1_score!==null?' · '+match.player1_score:''}</i><i class="${match.winner_id===match.player2_id?'winner':''}">${escapeHtml(match.player2_name||'Livre')}${match.player2_score!==null?' · '+match.player2_score:''}</i></span>`).join('')}</div>`).join('')}</div>`}
-
-  async function startDuel(matchId){
-    try{const data=await api('duel-start',{matchId});modal(`<div class="eyebrow">DUELO / RODADA ${data.match.round}</div><h2>${escapeHtml(data.championship.title)}</h2><p>Em empate por acertos, vence quem concluir em menos tempo.</p><form id="duel-form"><div class="simulation-questions">${data.questions.map((question,index)=>`<fieldset><legend><span>${String(index+1).padStart(2,'0')}</span>${escapeHtml(question.statement)}</legend>${question.options.map((option,optionIndex)=>`<label><input type="radio" name="answer${index}" value="${optionIndex}" required><span>${String.fromCharCode(65+optionIndex)}</span>${escapeHtml(option)}</label>`).join('')}</fieldset>`).join('')}</div><p id="duel-error" class="form-error" role="alert"></p><button type="submit" class="primary full">Enviar respostas do duelo</button></form>`);document.getElementById('duel-form').onsubmit=async event=>{event.preventDefault();event.submitter.disabled=true;const form=new FormData(event.currentTarget),answers=data.questions.map((_,index)=>Number(form.get('answer'+index)));try{const response=await api('duel-submit',{matchId,answers});state=response.state;updateSidebar();map();modal(`<div class="eyebrow">RESPOSTAS ENVIADAS</div><h2>${response.score} acertos</h2><p>${response.waiting?'Agora aguardamos o outro participante concluir.':'O confronto foi encerrado e a chave foi atualizada.'}</p><button type="button" class="primary full" id="close-duel-result">Voltar ao campeonato</button>`);document.getElementById('close-duel-result').onclick=()=>document.getElementById('modal').close()}catch(error){document.getElementById('duel-error').textContent=error.message;event.submitter.disabled=false}}}catch(error){toast(error.message)}
+  function showSimulationResult(result) {
+    modal(
+      `<div class="eyebrow">SIMULADO CONCLUÍDO</div><h2>${result.score} de ${result.total} respostas corretas</h2><div class="simulation-xp">+${result.xp}<small>XP</small></div><div class="simulation-review">${result.review.map((item, index) => `<details class="${item.answer === item.correct ? 'correct' : 'incorrect'}"><summary>${index + 1}. ${escapeHtml(item.statement)}</summary><p>Sua resposta: <b>${escapeHtml(item.options[item.answer])}</b></p><p>Resposta correta: <b>${escapeHtml(item.options[item.correct])}</b></p>${item.explanation ? `<p>${escapeHtml(item.explanation)}</p>` : ''}</details>`).join('')}</div><button type="button" class="primary full" id="finish-simulation-result">Voltar para minha jornada</button>`
+    );
+    document.getElementById('finish-simulation-result').onclick = () =>
+      document.getElementById('modal').close();
   }
 
-  function enhance(){if(rendering)return;rendering=true;try{subjectPanel();studentSubjects();studentSimulations();studentChampionships();unifiedXpViews();coreCourseContext()}finally{rendering=false}}
-  new MutationObserver(enhance).observe(document.getElementById('app'),{childList:true,subtree:true});
+  function studentChampionships() {
+    if (typeof state === 'undefined' || state?.role !== 'student') return;
+    const screen = document.getElementById('screen');
+    if (!screen || screen.querySelector('#student-championships')) return;
+    const lessonGrid = screen.querySelector('.lesson-grid');
+    if (!lessonGrid) return;
+    const championships = Array.isArray(state.championships) ? state.championships : [];
+    if (!championships.length) return;
+    const section = document.createElement('section');
+    section.id = 'student-championships';
+    section.className = 'student-championships';
+    section.innerHTML = `<div class="eyebrow">CAMPEONATOS DA TURMA</div><div class="subject-heading"><div><h2>Duelos de conhecimento</h2><p>Entre, faça o nivelamento e acompanhe seu caminho até a final.</p></div></div><div class="championship-grid">${championships.map(championship => championshipCard(championship)).join('')}</div>`;
+    lessonGrid.parentElement.insertBefore(section, lessonGrid);
+    section.querySelectorAll('[data-join-championship]').forEach(
+      button =>
+        (button.onclick = async () => {
+          button.disabled = true;
+          try {
+            const response = await api('championship-join', { id: button.dataset.joinChampionship });
+            state = response.state;
+            map();
+            toast('Inscrição confirmada no campeonato.');
+          } catch (error) {
+            toast(error.message);
+            button.disabled = false;
+          }
+        })
+    );
+    section
+      .querySelectorAll('[data-start-leveling]')
+      .forEach(button => (button.onclick = () => startLeveling(button.dataset.startLeveling)));
+    section
+      .querySelectorAll('[data-play-duel]')
+      .forEach(button => (button.onclick = () => startDuel(button.dataset.playDuel)));
+  }
+
+  function unifiedXpViews() {
+    if (typeof state === 'undefined') return;
+    if (state.role === 'teacher' && typeof report !== 'undefined' && report) {
+      const rows = document.querySelectorAll('.roster tbody tr');
+      rows.forEach((row, index) => {
+        const student = report.students[index];
+        if (!student) return;
+        const activity = (report.submissions || [])
+            .filter(item => item.student_id === student.id && item.status === 'approved')
+            .reduce((total, item) => total + Number(item.xp || 0), 0),
+          extra = (report.xpEvents || [])
+            .filter(item => item.student_id === student.id)
+            .reduce((total, item) => total + Number(item.xp || 0), 0),
+          cell = row.children[1];
+        if (cell && !cell.dataset.unifiedXp) {
+          cell.dataset.unifiedXp = 'true';
+          cell.innerHTML = `<strong>${Number(activity + extra).toLocaleString('pt-BR')}</strong>${extra ? `<small>${extra.toLocaleString('pt-BR')} XP em simulados e duelos</small>` : ''}`;
+        }
+      });
+      return;
+    }
+    if (state.role === 'student') {
+      const screen = document.getElementById('screen'),
+        passport = screen?.querySelector('.passport-card');
+      if (!passport || screen.querySelector('#xp-history')) return;
+      const events = state.xpEvents || [];
+      if (!events.length) return;
+      const section = document.createElement('section');
+      section.id = 'xp-history';
+      section.className = 'xp-history';
+      section.innerHTML = `<div class="eyebrow">EXTRATO DE XP</div><h2>Simulados e duelos</h2><div>${events
+        .slice()
+        .reverse()
+        .map(
+          event =>
+            `<article><span>${escapeHtml(event.description)}</span><strong>+${Number(event.xp).toLocaleString('pt-BR')} XP</strong></article>`
+        )
+        .join('')}</div>`;
+      passport.insertAdjacentElement('afterend', section);
+    }
+  }
+
+  function coreCourseContext() {
+    if (typeof state === 'undefined') return;
+    const screen = document.getElementById('screen');
+    if (!screen) return;
+    if (state.role === 'teacher' && typeof teacher !== 'undefined' && selectedClass) {
+      const grid = screen.querySelector('.release-grid');
+      if (!grid) return;
+      const heading = grid.previousElementSibling;
+      heading?.remove();
+      grid.remove();
+      return;
+    }
+    if (state.role === 'student' && !state.courseSubject) {
+      const grid = screen.querySelector('.lesson-grid');
+      if (grid && !grid.dataset.unlinked) {
+        grid.dataset.unlinked = 'true';
+        grid.innerHTML =
+          '<div class="empty course-unlinked"><h2>Nenhuma trilha de aulas vinculada.</h2><p>Quando o professor associar uma disciplina com aulas a esta turma, o conteúdo aparecerá aqui.</p></div>';
+      }
+    }
+  }
+
+  function championshipCard(championship) {
+    const attempts = state.duelAttempts || [],
+      me = championship.participants.find(item => item.student_id === state.student.id),
+      myMatches = championship.matches.filter(match =>
+        [match.player1_id, match.player2_id].includes(state.student.id)
+      ),
+      active = myMatches.find(match => match.status === 'open'),
+      attempt = active && attempts.find(item => item.match_id === active.id),
+      champion = championship.participants.find(item => item.student_id === championship.champion_id),
+      runner = championship.participants.find(item => item.student_id === championship.runner_up_id),
+      third = championship.participants.find(item => item.student_id === championship.third_id);
+    return `<article class="championship-card"><span class="simulation-status ${['leveling', 'active'].includes(championship.status) ? 'open' : championship.status === 'finished' ? 'closed' : ''}">${championship.status === 'registration' ? 'Inscrições abertas' : championship.status === 'leveling' ? 'Nivelamento' : championship.status === 'active' ? 'Mata-mata' : 'Finalizado'}</span><h3>${escapeHtml(championship.title)}</h3><p>${championship.participant_count} participantes · ${championship.leveling_question_count || championship.question_count} perguntas no nivelamento · ${championship.question_count} por duelo</p>${championship.status === 'registration' ? (championship.joined ? '<strong>Inscrição confirmada</strong>' : `<button type="button" class="primary" data-join-championship="${escapeHtml(championship.id)}">Quero participar</button>`) : ''}${championship.status === 'leveling' && me ? (me.leveling_status === 'completed' ? `<strong>Nivelamento concluído · ${me.leveling_score} acertos</strong>` : `<button type="button" class="primary" data-start-leveling="${escapeHtml(championship.id)}">Responder nivelamento</button>`) : ''}${active ? (attempt?.status === 'completed' ? '<strong>Respostas enviadas · aguardando oponente</strong>' : `<button type="button" class="primary duel-action" data-play-duel="${escapeHtml(active.id)}">Responder meu duelo</button>`) : ''}${['active', 'finished'].includes(championship.status) ? `<div class="student-live-bracket" data-student-bracket="${escapeHtml(championship.id)}">${renderBracket(championship)}</div>` : ''}${championship.status === 'finished' ? `<div class="podium"><span><b>1º</b>${escapeHtml(champion?.name || '—')}</span><span><b>2º</b>${escapeHtml(runner?.name || '—')}</span>${third ? `<span><b>3º</b>${escapeHtml(third.name)}</span>` : ''}</div>` : ''}</article>`;
+  }
+
+  async function startLeveling(id) {
+    try {
+      const data = await api('leveling-start', { id });
+      modal(
+        `<div class="eyebrow">ETAPA DE NIVELAMENTO</div><h2>${escapeHtml(data.championship.title)}</h2><p>Todos recebem as mesmas perguntas. Acertos e tempo total definem o ranking.</p><form id="leveling-form"><div class="simulation-questions">${data.questions.map((question, index) => `<fieldset><legend><span>${String(index + 1).padStart(2, '0')}</span>${escapeHtml(question.statement)}</legend>${question.options.map((option, optionIndex) => `<label><input type="radio" name="answer${index}" value="${optionIndex}" required><span>${String.fromCharCode(65 + optionIndex)}</span>${escapeHtml(option)}</label>`).join('')}</fieldset>`).join('')}</div><p id="leveling-error" class="form-error" role="alert"></p><button type="submit" class="primary full">Concluir nivelamento</button></form>`
+      );
+      document.getElementById('leveling-form').onsubmit = async event => {
+        event.preventDefault();
+        event.submitter.disabled = true;
+        const form = new FormData(event.currentTarget),
+          answers = data.questions.map((_, index) => Number(form.get('answer' + index)));
+        try {
+          const response = await api('leveling-submit', { id, answers });
+          state = response.state;
+          updateSidebar();
+          map();
+          toast(`Nivelamento concluído: ${response.score} de ${response.total} acertos.`);
+          document.getElementById('modal').close();
+        } catch (error) {
+          document.getElementById('leveling-error').textContent = error.message;
+          event.submitter.disabled = false;
+        }
+      };
+    } catch (error) {
+      toast(error.message);
+    }
+  }
+
+  function renderBracket(championship) {
+    const rounds = [
+      ...new Set(championship.matches.filter(match => match.kind === 'main').map(match => match.round))
+    ].sort((a, b) => a - b);
+    return `<div class="duel-bracket">${rounds
+      .map(
+        round =>
+          `<div><small>Rodada ${round}</small>${championship.matches
+            .filter(match => match.kind === 'main' && match.round === round)
+            .map(
+              match =>
+                `<span class="duel-pair"><i class="${match.winner_id === match.player1_id ? 'winner' : ''}">${escapeHtml(match.player1_name || 'Avanço automático')}${match.player1_score !== null ? ' · ' + match.player1_score : ''}</i><i class="${match.winner_id === match.player2_id ? 'winner' : ''}">${escapeHtml(match.player2_name || 'Livre')}${match.player2_score !== null ? ' · ' + match.player2_score : ''}</i></span>`
+            )
+            .join('')}</div>`
+      )
+      .join('')}</div>`;
+  }
+
+  async function startDuel(matchId) {
+    try {
+      const data = await api('duel-start', { matchId });
+      modal(
+        `<div class="eyebrow">DUELO / RODADA ${data.match.round}</div><h2>${escapeHtml(data.championship.title)}</h2><p>Em empate por acertos, vence quem concluir em menos tempo.</p><form id="duel-form"><div class="simulation-questions">${data.questions.map((question, index) => `<fieldset><legend><span>${String(index + 1).padStart(2, '0')}</span>${escapeHtml(question.statement)}</legend>${question.options.map((option, optionIndex) => `<label><input type="radio" name="answer${index}" value="${optionIndex}" required><span>${String.fromCharCode(65 + optionIndex)}</span>${escapeHtml(option)}</label>`).join('')}</fieldset>`).join('')}</div><p id="duel-error" class="form-error" role="alert"></p><button type="submit" class="primary full">Enviar respostas do duelo</button></form>`
+      );
+      document.getElementById('duel-form').onsubmit = async event => {
+        event.preventDefault();
+        event.submitter.disabled = true;
+        const form = new FormData(event.currentTarget),
+          answers = data.questions.map((_, index) => Number(form.get('answer' + index)));
+        try {
+          const response = await api('duel-submit', { matchId, answers });
+          state = response.state;
+          updateSidebar();
+          map();
+          modal(
+            `<div class="eyebrow">RESPOSTAS ENVIADAS</div><h2>${response.score} acertos</h2><p>${response.waiting ? 'Agora aguardamos o outro participante concluir.' : 'O confronto foi encerrado e a chave foi atualizada.'}</p><button type="button" class="primary full" id="close-duel-result">Voltar ao campeonato</button>`
+          );
+          document.getElementById('close-duel-result').onclick = () =>
+            document.getElementById('modal').close();
+        } catch (error) {
+          document.getElementById('duel-error').textContent = error.message;
+          event.submitter.disabled = false;
+        }
+      };
+    } catch (error) {
+      toast(error.message);
+    }
+  }
+
+  function enhance() {
+    if (rendering) return;
+    rendering = true;
+    try {
+      subjectPanel();
+      studentSubjects();
+      studentSimulations();
+      studentChampionships();
+      unifiedXpViews();
+      coreCourseContext();
+    } finally {
+      rendering = false;
+    }
+  }
+  new MutationObserver(enhance).observe(document.getElementById('app'), { childList: true, subtree: true });
   enhance();
 })();

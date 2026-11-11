@@ -1,0 +1,18 @@
+# Gerados, dependências e dados locais
+node_modules/
+dist/
+test-output/
+.local/
+package-lock.json
+
+# Documentação e página: mantidas como estão
+*.md
+*.html
+*.sql
+*.svg
+
+# Arquivos da versão inicial guardados como referência
+app.js
+content.js
+style.css
+verify.cjs

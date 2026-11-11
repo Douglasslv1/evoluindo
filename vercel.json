@@ -1,12 +1,20 @@
 {
-  "buildCommand":"npm run build",
-  "outputDirectory":"dist",
-  "framework":null,
-  "functions":{"api/index.js":{"includeFiles":"lib/**","maxDuration":60}},
-  "rewrites":[{"source":"/api/index","destination":"/api/index.js"}],
-  "headers":[{"source":"/(.*)","headers":[
-    {"key":"X-Content-Type-Options","value":"nosniff"},
-    {"key":"Referrer-Policy","value":"strict-origin-when-cross-origin"},
-    {"key":"Content-Security-Policy","value":"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"}
-  ]}]
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": null,
+  "functions": { "api/index.js": { "includeFiles": "lib/**", "maxDuration": 60 } },
+  "rewrites": [{ "source": "/api/index", "destination": "/api/index.js" }],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+        }
+      ]
+    }
+  ]
 }

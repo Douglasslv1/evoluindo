@@ -1,19 +1,217 @@
-const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
-const {createService}=require('../lib/service.cjs'),{course,findTask,publicLesson,sheets}=require('../lib/course.cjs'),{grade}=require('../lib/grader.cjs'),{calculate}=require('../lib/formula.cjs');
-test('dez aulas, quarenta missões únicas e roteiro de 180 minutos por encontro',()=>{assert.equal(course.length,10);const tasks=course.flatMap(l=>l.tasks);assert.equal(tasks.length,40);assert.equal(new Set(tasks.map(t=>t.id)).size,40);for(const l of course){assert.equal(l.agenda.reduce((s,a)=>s+a[1],0),180);assert.equal(l.tasks.filter(t=>t.bonus).length,1);for(const t of publicLesson(l).tasks){assert.equal(t.answer,undefined);assert.equal(t.expected,undefined);assert.equal(t.explain,undefined)}}});
-test('fórmulas calculam referências, condições, critérios e busca exata sem executar código',()=>{assert.equal(calculate('=SOMA(B2:B4)',sheets.hours),12);assert.equal(calculate('=MÉDIA(B2:B4)',sheets.hours),4);assert.equal(calculate('=(B2+B3)*B4',sheets.hours),36);assert.equal(calculate('=SE(B2<7;"Revisar";"Aprovado")',sheets.grades),'Revisar');assert.equal(calculate('=SOMASE(A2:A4;"Estudo";B2:B4)',sheets.categories),8);assert.equal(calculate('=PROCV("P02";$A$2:$C$4;3;FALSO)',sheets.parts),80);for(const bad of ['=process.exit()','=1/0','=SOMA(Z99:Z100)','=PROCV("P00";A2:C4;3;FALSO)','=PROCV("P02";A2:C4;3;VERDADEIRO)'])assert.throws(()=>calculate(bad,sheets.parts));});
-test('validação de fórmulas aceita lógica correta e rejeita constantes e atalhos frágeis',()=>{const good={'l4-sum':'=SOMA(B2:B4)','l4-average':'=MÉDIA(B2:B4)','l5-if':'=SE(B2>=7;"Aprovado";"Revisar")','l5-sumif':'=SOMASE(A2:A4;"Estudo";B2:B4)','l5-vlookup':'=PROCV("P02";A2:C4;3;FALSO)'};for(const [id,formula] of Object.entries(good))assert.equal(grade(findTask(id),{formula}).status,'approved',id);assert.equal(grade(findTask('l4-sum'),{formula:'=SOMA(12)'}).status,'retry');assert.equal(grade(findTask('l5-if'),{formula:'=SE(1=1;"Revisar";"Aprovado")'}).status,'retry');assert.equal(grade(findTask('l5-sumif'),{formula:'=SOMASE(A2:A4;"Estudo";B2:B4)+0'}).status,'approved')});
-test('jogos conferem o conjunto, sem XP parcial de respostas erradas',()=>{let t=findTask('l1-cables');assert.equal(grade(t,{connections:{power:'usb'}}).xp,0);assert.equal(grade(t,{connections:Object.fromEntries(t.items.map(([id])=>[id,id]))}).xp,160);assert.equal(grade(findTask('l2-files'),{locations:{'desenho.pdf':'Projetos','medidas.xlsx':'Planilhas','relato.docx':'Relatórios'}}).status,'approved');assert.equal(grade(findTask('l6-macro'),{order:findTask('l6-macro').answer}).status,'approved');assert.equal(grade(findTask('l9-query'),{sql:'SELECT * FROM pecas WHERE estoque < 5; DROP TABLE pecas;'}).status,'retry');assert.equal(grade(findTask('l7-slides'),{slides:[null,null,null]}).status,'retry')});
-test('contas, bloqueio no servidor, XP único, avaliação, isolamento e recuperação após reinício',async()=>{const base=path.resolve(__dirname,'..','test-output');fs.mkdirSync(base,{recursive:true});const directory=fs.mkdtempSync(path.join(base,'interface-tests-')),file=path.join(directory,'classroom.json');try{
-let service=createService({file});assert.equal((await service.execute('status')).needsSetup,true);const login=await service.execute('setup',{password:'senha-de-teste-forte'}),teacher=await service.session(login.token);assert.equal(teacher.role,'teacher');assert.equal(await service.session(login.token+'forjado'),null);
-const cls=(await service.execute('create-class',{name:'Estudo A'},teacher)).classroom;assert.deepEqual(cls.released,[]);let registered=await service.execute('register',{classCode:cls.code,name:'Ana Teste',pin:'123456'}),student=await service.session(registered.token);assert.equal(student.student.name,'Ana Teste');assert.equal(registered.student.pin_hash,undefined);assert.equal(registered.student.version,undefined);
-await assert.rejects(()=>service.execute('lesson',{id:1},student),{status:403});await assert.rejects(()=>service.execute('submit',{taskId:'l1-memory',payload:{option:0},xp:99999},student),{status:403});await assert.rejects(()=>service.execute('release',{classId:cls.id,lessons:[1]},student),{status:401});await assert.rejects(()=>service.execute('teacher-state',{},student),{status:401});
-await service.execute('release',{classId:cls.id,lessons:[1]},teacher);let lesson=await service.execute('lesson',{id:1},student);assert.equal(lesson.lesson.tasks[2].answer,undefined);
-let result=await service.execute('submit',{taskId:'l1-memory',payload:{option:0},xp:99999},student);assert.equal(result.result.xp,100);for(let i=0;i<3;i++)await service.execute('submit',{taskId:'l1-memory',payload:{option:0}},student);let me=await service.execute('me',{},student);assert.equal(me.progress.length,1);assert.equal(me.progress.reduce((s,r)=>s+r.xp,0),100);
-const second=await service.execute('register',{classCode:cls.code,name:'Ana Teste',pin:'654321'});assert.notEqual(second.student.access_code,registered.student.access_code);const s2=await service.session(second.token);assert.equal((await service.execute('me',{},s2)).progress.length,0);
-result=await service.execute('submit',{taskId:'l1-bonus',payload:{text:'Vou verificar RAM, CPU, disco e GPU e comparar o desempenho em uma tarefa real. '.repeat(3)}},student);assert.equal(result.result.status,'pending');assert.equal(result.result.xp,0);const pending=result.progress.find(r=>r.task_id==='l1-bonus');await service.execute('review',{id:pending.id,status:'revision',feedback:'Explique também a hipótese de memória insuficiente.'},teacher);await service.execute('submit',{taskId:'l1-bonus',payload:{text:'Verificar a ocupação da RAM e o tempo de CPU no CAD. A frequência não basta porque arquitetura e software influenciam. '.repeat(2)}},student);await service.execute('review',{id:pending.id,status:'approved',feedback:'Boa comparação entre medidas e hipótese.'},teacher);
-await service.execute('official-grade',{studentId:student.id,grade:8.5,note:'Prova oficial aplicada em sala.'},teacher);let summary=await service.execute('class-report',{classId:cls.id},teacher);assert.equal(summary.students.length,2);assert.equal(summary.submissions.length,2);assert.equal(summary.students[0].pin_hash,undefined);assert.equal(summary.students.find(s=>s.id===student.id).official_grade,8.5);
-await service.execute('release',{classId:cls.id,lessons:[]},teacher);await assert.rejects(()=>service.execute('submit',{taskId:'l1-memory',payload:{option:0}},student),{status:403});me=await service.execute('me',{},student);assert.equal(me.progress.reduce((s,r)=>s+r.xp,0),180);
-service=createService({file});student=await service.session(registered.token);assert.equal(student.id,registered.student.id);assert.equal((await service.execute('me',{},student)).progress.length,2);await service.execute('reset-pin',{studentId:student.id,pin:'112233'},teacher);assert.equal(await service.session(registered.token),null);await assert.rejects(()=>service.execute('student-login',{accessCode:registered.student.access_code,pin:'123456'}),{status:401});const relogin=await service.execute('student-login',{accessCode:registered.student.access_code,pin:'112233'});assert.equal(relogin.progress.reduce((s,r)=>s+r.xp,0),180);
-await service.execute('enrollment',{classId:cls.id,open:false},teacher);await assert.rejects(()=>service.execute('register',{classCode:cls.code,name:'Aluno novo',pin:'123456'}),{status:404});
-}finally{if(path.dirname(path.resolve(directory))!==base)throw Error('Diretório de teste inválido.');fs.rmSync(directory,{recursive:true,force:true})}});
+const { test } = require('node:test'),
+  assert = require('node:assert/strict'),
+  fs = require('node:fs'),
+  os = require('node:os'),
+  path = require('node:path');
+const { createService } = require('../lib/service.cjs'),
+  { course, findTask, publicLesson, sheets } = require('../lib/course.cjs'),
+  { grade } = require('../lib/grader.cjs'),
+  { calculate } = require('../lib/formula.cjs');
+test('dez aulas, quarenta missões únicas e roteiro de 180 minutos por encontro', () => {
+  assert.equal(course.length, 10);
+  const tasks = course.flatMap(l => l.tasks);
+  assert.equal(tasks.length, 40);
+  assert.equal(new Set(tasks.map(t => t.id)).size, 40);
+  for (const l of course) {
+    assert.equal(
+      l.agenda.reduce((s, a) => s + a[1], 0),
+      180
+    );
+    assert.equal(l.tasks.filter(t => t.bonus).length, 1);
+    for (const t of publicLesson(l).tasks) {
+      assert.equal(t.answer, undefined);
+      assert.equal(t.expected, undefined);
+      assert.equal(t.explain, undefined);
+    }
+  }
+});
+test('fórmulas calculam referências, condições, critérios e busca exata sem executar código', () => {
+  assert.equal(calculate('=SOMA(B2:B4)', sheets.hours), 12);
+  assert.equal(calculate('=MÉDIA(B2:B4)', sheets.hours), 4);
+  assert.equal(calculate('=(B2+B3)*B4', sheets.hours), 36);
+  assert.equal(calculate('=SE(B2<7;"Revisar";"Aprovado")', sheets.grades), 'Revisar');
+  assert.equal(calculate('=SOMASE(A2:A4;"Estudo";B2:B4)', sheets.categories), 8);
+  assert.equal(calculate('=PROCV("P02";$A$2:$C$4;3;FALSO)', sheets.parts), 80);
+  for (const bad of [
+    '=process.exit()',
+    '=1/0',
+    '=SOMA(Z99:Z100)',
+    '=PROCV("P00";A2:C4;3;FALSO)',
+    '=PROCV("P02";A2:C4;3;VERDADEIRO)'
+  ])
+    assert.throws(() => calculate(bad, sheets.parts));
+});
+test('validação de fórmulas aceita lógica correta e rejeita constantes e atalhos frágeis', () => {
+  const good = {
+    'l4-sum': '=SOMA(B2:B4)',
+    'l4-average': '=MÉDIA(B2:B4)',
+    'l5-if': '=SE(B2>=7;"Aprovado";"Revisar")',
+    'l5-sumif': '=SOMASE(A2:A4;"Estudo";B2:B4)',
+    'l5-vlookup': '=PROCV("P02";A2:C4;3;FALSO)'
+  };
+  for (const [id, formula] of Object.entries(good))
+    assert.equal(grade(findTask(id), { formula }).status, 'approved', id);
+  assert.equal(grade(findTask('l4-sum'), { formula: '=SOMA(12)' }).status, 'retry');
+  assert.equal(grade(findTask('l5-if'), { formula: '=SE(1=1;"Revisar";"Aprovado")' }).status, 'retry');
+  assert.equal(
+    grade(findTask('l5-sumif'), { formula: '=SOMASE(A2:A4;"Estudo";B2:B4)+0' }).status,
+    'approved'
+  );
+});
+test('jogos conferem o conjunto, sem XP parcial de respostas erradas', () => {
+  let t = findTask('l1-cables');
+  assert.equal(grade(t, { connections: { power: 'usb' } }).xp, 0);
+  assert.equal(grade(t, { connections: Object.fromEntries(t.items.map(([id]) => [id, id])) }).xp, 160);
+  assert.equal(
+    grade(findTask('l2-files'), {
+      locations: { 'desenho.pdf': 'Projetos', 'medidas.xlsx': 'Planilhas', 'relato.docx': 'Relatórios' }
+    }).status,
+    'approved'
+  );
+  assert.equal(grade(findTask('l6-macro'), { order: findTask('l6-macro').answer }).status, 'approved');
+  assert.equal(
+    grade(findTask('l9-query'), { sql: 'SELECT * FROM pecas WHERE estoque < 5; DROP TABLE pecas;' }).status,
+    'retry'
+  );
+  assert.equal(grade(findTask('l7-slides'), { slides: [null, null, null] }).status, 'retry');
+});
+test('contas, bloqueio no servidor, XP único, avaliação, isolamento e recuperação após reinício', async () => {
+  const base = path.resolve(__dirname, '..', 'test-output');
+  fs.mkdirSync(base, { recursive: true });
+  const directory = fs.mkdtempSync(path.join(base, 'interface-tests-')),
+    file = path.join(directory, 'classroom.json');
+  try {
+    let service = createService({ file });
+    assert.equal((await service.execute('status')).needsSetup, true);
+    const login = await service.execute('setup', { password: 'senha-de-teste-forte' }),
+      teacher = await service.session(login.token);
+    assert.equal(teacher.role, 'teacher');
+    assert.equal(await service.session(login.token + 'forjado'), null);
+    const cls = (await service.execute('create-class', { name: 'Estudo A' }, teacher)).classroom;
+    assert.deepEqual(cls.released, []);
+    let registered = await service.execute('register', {
+        classCode: cls.code,
+        name: 'Ana Teste',
+        pin: '123456'
+      }),
+      student = await service.session(registered.token);
+    assert.equal(student.student.name, 'Ana Teste');
+    assert.equal(registered.student.pin_hash, undefined);
+    assert.equal(registered.student.version, undefined);
+    await assert.rejects(() => service.execute('lesson', { id: 1 }, student), { status: 403 });
+    await assert.rejects(
+      () => service.execute('submit', { taskId: 'l1-memory', payload: { option: 0 }, xp: 99999 }, student),
+      { status: 403 }
+    );
+    await assert.rejects(() => service.execute('release', { classId: cls.id, lessons: [1] }, student), {
+      status: 401
+    });
+    await assert.rejects(() => service.execute('teacher-state', {}, student), { status: 401 });
+    await service.execute('release', { classId: cls.id, lessons: [1] }, teacher);
+    let lesson = await service.execute('lesson', { id: 1 }, student);
+    assert.equal(lesson.lesson.tasks[2].answer, undefined);
+    let result = await service.execute(
+      'submit',
+      { taskId: 'l1-memory', payload: { option: 0 }, xp: 99999 },
+      student
+    );
+    assert.equal(result.result.xp, 100);
+    for (let i = 0; i < 3; i++)
+      await service.execute('submit', { taskId: 'l1-memory', payload: { option: 0 } }, student);
+    let me = await service.execute('me', {}, student);
+    assert.equal(me.progress.length, 1);
+    assert.equal(
+      me.progress.reduce((s, r) => s + r.xp, 0),
+      100
+    );
+    const second = await service.execute('register', {
+      classCode: cls.code,
+      name: 'Ana Teste',
+      pin: '654321'
+    });
+    assert.notEqual(second.student.access_code, registered.student.access_code);
+    const s2 = await service.session(second.token);
+    assert.equal((await service.execute('me', {}, s2)).progress.length, 0);
+    result = await service.execute(
+      'submit',
+      {
+        taskId: 'l1-bonus',
+        payload: {
+          text: 'Vou verificar RAM, CPU, disco e GPU e comparar o desempenho em uma tarefa real. '.repeat(3)
+        }
+      },
+      student
+    );
+    assert.equal(result.result.status, 'pending');
+    assert.equal(result.result.xp, 0);
+    const pending = result.progress.find(r => r.task_id === 'l1-bonus');
+    await service.execute(
+      'review',
+      { id: pending.id, status: 'revision', feedback: 'Explique também a hipótese de memória insuficiente.' },
+      teacher
+    );
+    await service.execute(
+      'submit',
+      {
+        taskId: 'l1-bonus',
+        payload: {
+          text: 'Verificar a ocupação da RAM e o tempo de CPU no CAD. A frequência não basta porque arquitetura e software influenciam. '.repeat(
+            2
+          )
+        }
+      },
+      student
+    );
+    await service.execute(
+      'review',
+      { id: pending.id, status: 'approved', feedback: 'Boa comparação entre medidas e hipótese.' },
+      teacher
+    );
+    await service.execute(
+      'official-grade',
+      { studentId: student.id, grade: 8.5, note: 'Prova oficial aplicada em sala.' },
+      teacher
+    );
+    let summary = await service.execute('class-report', { classId: cls.id }, teacher);
+    assert.equal(summary.students.length, 2);
+    assert.equal(summary.submissions.length, 2);
+    assert.equal(summary.students[0].pin_hash, undefined);
+    assert.equal(summary.students.find(s => s.id === student.id).official_grade, 8.5);
+    await service.execute('release', { classId: cls.id, lessons: [] }, teacher);
+    await assert.rejects(
+      () => service.execute('submit', { taskId: 'l1-memory', payload: { option: 0 } }, student),
+      { status: 403 }
+    );
+    me = await service.execute('me', {}, student);
+    assert.equal(
+      me.progress.reduce((s, r) => s + r.xp, 0),
+      180
+    );
+    service = createService({ file });
+    student = await service.session(registered.token);
+    assert.equal(student.id, registered.student.id);
+    assert.equal((await service.execute('me', {}, student)).progress.length, 2);
+    await service.execute('reset-pin', { studentId: student.id, pin: '112233' }, teacher);
+    assert.equal(await service.session(registered.token), null);
+    await assert.rejects(
+      () => service.execute('student-login', { accessCode: registered.student.access_code, pin: '123456' }),
+      { status: 401 }
+    );
+    const relogin = await service.execute('student-login', {
+      accessCode: registered.student.access_code,
+      pin: '112233'
+    });
+    assert.equal(
+      relogin.progress.reduce((s, r) => s + r.xp, 0),
+      180
+    );
+    await service.execute('enrollment', { classId: cls.id, open: false }, teacher);
+    await assert.rejects(
+      () => service.execute('register', { classCode: cls.code, name: 'Aluno novo', pin: '123456' }),
+      { status: 404 }
+    );
+  } finally {
+    if (path.dirname(path.resolve(directory)) !== base) throw Error('Diretório de teste inválido.');
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});

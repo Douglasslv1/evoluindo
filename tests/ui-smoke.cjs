@@ -1,3 +1,58 @@
-const fs=require('node:fs'),vm=require('node:vm'),{course,publicLesson,sheets}=require('../lib/course.cjs');
-const nodes=new Map();function el(key){if(!nodes.has(key))nodes.set(key,{innerHTML:'',textContent:'',value:'',style:{},classList:{add(){},remove(){},toggle(){}},showModal(){this.open=true},close(){this.open=false},insertAdjacentHTML(){},scrollIntoView(){},querySelector(){return el('child')},selectedIndex:0});return nodes.get(key)}
-const context={console,URL,Blob,FormData,localStorage:{getItem:()=>null,setItem(){}},setTimeout:()=>0,clearTimeout(){},setInterval:()=>0,clearInterval(){},document:{querySelector:el,querySelectorAll:()=>[],addEventListener(){},createElement:()=>({click(){}})},window:{scrollTo(){}}};vm.createContext(context);const source=fs.readFileSync('course-app.js','utf8').replace('}init();','}');vm.runInContext(source,context);vm.runInContext(fs.readFileSync('study.js','utf8'),context);context.lessons=course.map(publicLesson);context.sheets=sheets;vm.runInContext("state={role:'student',student:{id:'ui-test',name:'Aluno Teste',class_id:'c',access_code:'AABBCCDDEEFF',official_grade:null},classroom:{id:'c',name:'Turma teste',released:[1,2,3,4,5,6,7,8,9,10]},progress:[],lessons:lessons.map(l=>({...l,taskCount:l.tasks.length}))};shell();map();passport();for(const l of lessons){activeLesson={...l,sheets};lessonPage();for(let i=0;i<l.study.blocks.length;i++)studyBlock(i);for(const t of l.tasks){activeTask=t;draft={};taskPage()}}state={role:'teacher'};teacher={classes:[],curriculum:lessons};report=null;teacherPage();",context);console.log('Renderização lógica OK: acesso, mapa, passaporte, dez aulas, oitenta estações, quarenta atividades e painel docente. Não substitui inspeção visual no navegador.');
+const fs = require('node:fs'),
+  vm = require('node:vm'),
+  { course, publicLesson, sheets } = require('../lib/course.cjs');
+const nodes = new Map();
+function el(key) {
+  if (!nodes.has(key))
+    nodes.set(key, {
+      innerHTML: '',
+      textContent: '',
+      value: '',
+      style: {},
+      classList: { add() {}, remove() {}, toggle() {} },
+      showModal() {
+        this.open = true;
+      },
+      close() {
+        this.open = false;
+      },
+      insertAdjacentHTML() {},
+      scrollIntoView() {},
+      querySelector() {
+        return el('child');
+      },
+      selectedIndex: 0
+    });
+  return nodes.get(key);
+}
+const context = {
+  console,
+  URL,
+  Blob,
+  FormData,
+  localStorage: { getItem: () => null, setItem() {} },
+  setTimeout: () => 0,
+  clearTimeout() {},
+  setInterval: () => 0,
+  clearInterval() {},
+  document: {
+    querySelector: el,
+    querySelectorAll: () => [],
+    addEventListener() {},
+    createElement: () => ({ click() {} })
+  },
+  window: { scrollTo() {} }
+};
+vm.createContext(context);
+const source = fs.readFileSync('course-app.js', 'utf8').replace('}init();', '}');
+vm.runInContext(source, context);
+vm.runInContext(fs.readFileSync('study.js', 'utf8'), context);
+context.lessons = course.map(publicLesson);
+context.sheets = sheets;
+vm.runInContext(
+  "state={role:'student',student:{id:'ui-test',name:'Aluno Teste',class_id:'c',access_code:'AABBCCDDEEFF',official_grade:null},classroom:{id:'c',name:'Turma teste',released:[1,2,3,4,5,6,7,8,9,10]},progress:[],lessons:lessons.map(l=>({...l,taskCount:l.tasks.length}))};shell();map();passport();for(const l of lessons){activeLesson={...l,sheets};lessonPage();for(let i=0;i<l.study.blocks.length;i++)studyBlock(i);for(const t of l.tasks){activeTask=t;draft={};taskPage()}}state={role:'teacher'};teacher={classes:[],curriculum:lessons};report=null;teacherPage();",
+  context
+);
+console.log(
+  'Renderização lógica OK: acesso, mapa, passaporte, dez aulas, oitenta estações, quarenta atividades e painel docente. Não substitui inspeção visual no navegador.'
+);

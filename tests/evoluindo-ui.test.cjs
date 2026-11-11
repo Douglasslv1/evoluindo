@@ -1,60 +1,77 @@
-const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
+const { test } = require('node:test'),
+  assert = require('node:assert/strict'),
+  fs = require('node:fs');
 
-test('publica a gestão visual de disciplinas para professor e aluno',()=>{
-  const html=fs.readFileSync('index.html','utf8'),source=fs.readFileSync('evoluindo-admin.js','utf8'),monitor=fs.readFileSync('duel-monitor.js','utf8'),refresh=fs.readFileSync('smooth-refresh.js','utf8'),reports=fs.readFileSync('championship-reports.js','utf8'),controls=fs.readFileSync('disqualification-controls.js','utf8'),questionImport=fs.readFileSync('question-import.js','utf8'),brand=fs.readFileSync('brand.js','utf8'),css=fs.readFileSync('evoluindo.css','utf8');
-  assert.match(html,/evoluindo-admin\.js/);
-  assert.match(source,/create-subject/);
-  assert.match(source,/set-class-subject/);
-  assert.match(source,/Disciplinas desta turma/);
-  assert.match(source,/student-subjects/);
-  assert.match(source,/create-question-bank/);
-  assert.match(source,/save-question/);
-  assert.match(source,/bank-questions/);
-  assert.match(source,/create-simulation/);
-  assert.match(source,/simulation-start/);
-  assert.match(source,/simulation-submit/);
-  assert.match(source,/create-championship/);
-  assert.match(source,/championship-join/);
-  assert.match(source,/duel-start/);
-  assert.match(source,/duel-submit/);
-  assert.match(source,/duel-bracket/);
-  assert.match(source,/coreCourseContext/);
-  assert.match(source,/heading\?\.remove\(\);grid\.remove\(\)/);
-  assert.doesNotMatch(source,/Informática Básica não está vinculada/);
-  assert.match(html,/duel-monitor\.js/);
-  assert.match(monitor,/deadline_at/);
-  assert.match(monitor,/visibilitychange/);
-  assert.match(monitor,/duel-focus/);
-  assert.match(monitor,/durationSeconds/);
-  assert.match(monitor,/championship-watch/);
-  assert.match(monitor,/bracket-board/);
-  assert.match(monitor,/bracketSize/);
-  assert.match(monitor,/thirdMatch/);
-  assert.match(monitor,/live-podium/);
-  assert.match(monitor,/actual\.get\(index\)/);
-  assert.match(monitor,/2\*\*distance/);
-  assert.match(source,/entre 4 e 64/);
-  assert.match(source,/championship-disclosure/);
-  assert.match(monitor,/championship-disclosure\[open\]/);
-  assert.match(html,/smooth-refresh\.js/);
-  assert.match(refresh,/scrollTop=window\.scrollY/);
-  assert.match(refresh,/selectedClass===renderedClass/);
-  assert.doesNotMatch(refresh,/loading\(\)/);
-  assert.match(refresh,/explicitNoClass/);
-  assert.match(refresh,/Nenhuma turma selecionada/);
-  assert.match(html,/championship-reports\.js/);
-  assert.match(reports,/championship-report/);
-  assert.match(reports,/Perguntas com mais erros/);
-  assert.match(reports,/Baixar CSV/);
-  assert.match(html,/disqualification-controls\.js/);
-  assert.match(controls,/disqualify-participant/);
-  assert.match(controls,/Motivo da desclassifica/);
-  assert.match(html,/question-import\.js/);
-  assert.match(questionImport,/import-questions/);
-  assert.match(questionImport,/export-question-bank/);
-  assert.match(questionImport,/Baixar modelo JSON/);
-  assert.match(css,/\.subject-options/);
-  assert.match(css,/@media\(max-width:600px\)/);
-  assert.match(brand,/textContent!==label/);
-  assert.match(brand,/!courseLabel\.dataset\.evoluindo/);
+// O código é formatado pelo Prettier: compara também a versão sem espaços, para o teste não depender de quebras de linha.
+const squash = text => text.replace(/\s+/g, '');
+const matchCode = (text, pattern) =>
+  assert.ok(pattern.test(text) || pattern.test(squash(text)), 'Não encontrado: ' + pattern);
+const noCode = (text, pattern) =>
+  assert.ok(!pattern.test(text) && !pattern.test(squash(text)), 'Não deveria existir: ' + pattern);
+
+test('publica a gestão visual de disciplinas para professor e aluno', () => {
+  const html = fs.readFileSync('index.html', 'utf8'),
+    source = fs.readFileSync('evoluindo-admin.js', 'utf8'),
+    monitor = fs.readFileSync('duel-monitor.js', 'utf8'),
+    refresh = fs.readFileSync('smooth-refresh.js', 'utf8'),
+    reports = fs.readFileSync('championship-reports.js', 'utf8'),
+    controls = fs.readFileSync('disqualification-controls.js', 'utf8'),
+    questionImport = fs.readFileSync('question-import.js', 'utf8'),
+    brand = fs.readFileSync('brand.js', 'utf8'),
+    css = fs.readFileSync('evoluindo.css', 'utf8');
+  matchCode(html, /evoluindo-admin\.js/);
+  matchCode(source, /create-subject/);
+  matchCode(source, /set-class-subject/);
+  matchCode(source, /Disciplinas desta turma/);
+  matchCode(source, /student-subjects/);
+  matchCode(source, /create-question-bank/);
+  matchCode(source, /save-question/);
+  matchCode(source, /bank-questions/);
+  matchCode(source, /create-simulation/);
+  matchCode(source, /simulation-start/);
+  matchCode(source, /simulation-submit/);
+  matchCode(source, /create-championship/);
+  matchCode(source, /championship-join/);
+  matchCode(source, /duel-start/);
+  matchCode(source, /duel-submit/);
+  matchCode(source, /duel-bracket/);
+  matchCode(source, /coreCourseContext/);
+  matchCode(source, /heading\?\.remove\(\);grid\.remove\(\)/);
+  noCode(source, /Informática Básica não está vinculada/);
+  matchCode(html, /duel-monitor\.js/);
+  matchCode(monitor, /deadline_at/);
+  matchCode(monitor, /visibilitychange/);
+  matchCode(monitor, /duel-focus/);
+  matchCode(monitor, /durationSeconds/);
+  matchCode(monitor, /championship-watch/);
+  matchCode(monitor, /bracket-board/);
+  matchCode(monitor, /bracketSize/);
+  matchCode(monitor, /thirdMatch/);
+  matchCode(monitor, /live-podium/);
+  matchCode(monitor, /actual\.get\(index\)/);
+  matchCode(monitor, /2\*\*distance/);
+  matchCode(source, /entre 4 e 64/);
+  matchCode(source, /championship-disclosure/);
+  matchCode(monitor, /championship-disclosure\[open\]/);
+  matchCode(html, /smooth-refresh\.js/);
+  matchCode(refresh, /scrollTop=window\.scrollY/);
+  matchCode(refresh, /selectedClass===renderedClass/);
+  noCode(refresh, /loading\(\)/);
+  matchCode(refresh, /explicitNoClass/);
+  matchCode(refresh, /Nenhuma turma selecionada/);
+  matchCode(html, /championship-reports\.js/);
+  matchCode(reports, /championship-report/);
+  matchCode(reports, /Perguntas com mais erros/);
+  matchCode(reports, /Baixar CSV/);
+  matchCode(html, /disqualification-controls\.js/);
+  matchCode(controls, /disqualify-participant/);
+  matchCode(controls, /Motivo da desclassifica/);
+  matchCode(html, /question-import\.js/);
+  matchCode(questionImport, /import-questions/);
+  matchCode(questionImport, /export-question-bank/);
+  matchCode(questionImport, /Baixar modelo JSON/);
+  matchCode(css, /\.subject-options/);
+  matchCode(css, /@media\(max-width:600px\)/);
+  matchCode(brand, /textContent!==label/);
+  matchCode(brand, /!courseLabel\.dataset\.evoluindo/);
 });
