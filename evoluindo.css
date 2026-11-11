@@ -2113,3 +2113,75 @@ summary b {
     grid-template-columns: 1fr;
   }
 }
+.championship-record article.gold strong {
+  color: #8a6a12;
+}
+.championship-record article.silver strong {
+  color: #5f6b72;
+}
+.championship-record article.bronze strong {
+  color: #8a5532;
+}
+.championship-history {
+  margin-top: 22px;
+}
+.championship-history table {
+  width: 100%;
+  margin-top: 10px;
+  font-size: 12px;
+}
+.projector {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow: auto;
+  padding: 28px clamp(16px, 4vw, 56px) 40px;
+  background: var(--evo-paper);
+  color: var(--text);
+}
+.projector-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.projector-head small {
+  color: var(--muted);
+  letter-spacing: 0.12em;
+}
+.projector-head h1 {
+  margin: 6px 0 0;
+  color: var(--evo-navy);
+  font-size: clamp(28px, 4vw, 56px);
+}
+.projector-actions {
+  display: flex;
+  gap: 10px;
+}
+.projector .live-stage {
+  font-size: 18px;
+  padding: 16px 20px;
+}
+.projector .live-stage span {
+  font-size: 14px;
+}
+.projector .tree-match i {
+  min-height: 52px;
+  font-size: 17px;
+}
+.projector .bracket-round h4,
+.projector .bracket-guide {
+  font-size: 14px;
+}
+.projector .leveling-ranking > div {
+  font-size: 20px;
+  padding: 14px 18px;
+}
+.projector .live-podium-steps b {
+  font-size: 22px;
+}
+.projector:fullscreen {
+  padding: 36px 64px;
+}

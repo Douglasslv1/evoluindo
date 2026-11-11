@@ -270,7 +270,7 @@ function passport() {
   activeTask = null;
   activeLesson = null;
   $('#screen').innerHTML =
-    `<section class="page"><div class="eyebrow">SEU PASSAPORTE</div><h1>Cada conquista<br><span>conta uma história.</span></h1><div class="passport-card"><span class="avatar large">${e(state.student.name.slice(0, 1).toUpperCase())}</span><div><h2>${e(state.student.name)}</h2><p>${e(state.classroom.name)} · ${e(badgeName())}</p><button class="text-btn" id="show-access">Ver meu código de acesso ↗</button></div><strong>${format(xp())}<small> XP</small></strong></div>${xpStatementSection()}<h2>Insígnias da jornada</h2><p class="muted">Cada aula com as três missões essenciais aprovadas recebe uma insígnia. Bônus são opcionais.</p><div class="badges">${state.lessons
+    `<section class="page"><div class="eyebrow">SEU PASSAPORTE</div><h1>Cada conquista<br><span>conta uma história.</span></h1><div class="passport-card"><span class="avatar large">${e(state.student.name.slice(0, 1).toUpperCase())}</span><div><h2>${e(state.student.name)}</h2><p>${e(state.classroom.name)} · ${e(badgeName())}</p><button class="text-btn" id="show-access">Ver meu código de acesso ↗</button></div><strong>${format(xp())}<small> XP</small></strong></div>${xpStatementSection()}${championshipRecordSection()}<h2>Insígnias da jornada</h2><p class="muted">Cada aula com as três missões essenciais aprovadas recebe uma insígnia. Bônus são opcionais.</p><div class="badges">${state.lessons
       // Insígnias existem para as aulas fundamentais (missões l1-… a l10-…), identificadas pelo número original.
       .filter(l => l.legacy_lesson_id)
       .map(l => {
@@ -320,6 +320,42 @@ function xpStatementSection() {
     .join(
       ''
     )}</div>${entries.length ? `<div>${entries.map(entry => `<article><span>${e(entry.description)}<small>${labels[entry.source] || ''}${entry.date ? ' · ' + date(entry.date) : ''}</small></span><strong>+${format(entry.xp)} XP</strong></article>`).join('')}</div>${statement.entries.length > entries.length ? `<p class="muted small">Mostrando os ${entries.length} lançamentos mais recentes de ${statement.entries.length}.</p>` : ''}` : '<p class="muted">Seu XP aparecerá aqui quando você concluir missões, simulados ou duelos.</p>'}</section>`;
+}
+// Histórico do aluno nos campeonatos da turma: colocação e retrospecto de duelos (vitórias e derrotas).
+function championshipRecordSection() {
+  const me = state.student.id,
+    joined = (state.championships || []).filter(item => item.joined);
+  if (!joined.length) return '';
+  const placement = item => {
+    if (item.champion_id === me) return ['gold', '🥇 Campeão'];
+    if (item.runner_up_id === me) return ['silver', '🥈 Vice-campeão'];
+    if (item.third_id === me) return ['bronze', '🥉 Terceiro lugar'];
+    if (item.status === 'finished') return ['', 'Participou'];
+    return [
+      '',
+      { registration: 'Inscrito', leveling: 'Nivelamento', active: 'Em andamento' }[item.status] || ''
+    ];
+  };
+  const rows = joined
+    .slice()
+    .sort((a, b) =>
+      String(b.finished_at || b.created_at || '').localeCompare(String(a.finished_at || a.created_at || ''))
+    )
+    .map(item => {
+      const duels = (item.matches || []).filter(
+          match =>
+            match.status === 'finished' &&
+            match.player2_id &&
+            [match.player1_id, match.player2_id].includes(me)
+        ),
+        wins = duels.filter(match => match.winner_id === me).length,
+        [medal, label] = placement(item);
+      return `<article class="${medal}"><span>${e(item.title)}<small>${e(label)}${item.finished_at ? ' · ' + new Date(item.finished_at).toLocaleDateString('pt-BR') : ''}</small></span><strong>${wins} V · ${duels.length - wins} D</strong></article>`;
+    })
+    .join('');
+  const titles = joined.filter(item => item.champion_id === me).length,
+    podiums = joined.filter(item => [item.champion_id, item.runner_up_id, item.third_id].includes(me)).length;
+  return `<section class="xp-history championship-record"><div class="eyebrow">MEUS CAMPEONATOS</div><h2>${titles ? `${titles} título${titles === 1 ? '' : 's'} conquistado${titles === 1 ? '' : 's'}` : podiums ? `${podiums} pódio${podiums === 1 ? '' : 's'}` : 'Sua trajetória nos duelos'}</h2><div>${rows}</div><p class="muted small">V = duelos vencidos · D = duelos perdidos. Vagas automáticas não contam como duelo.</p></section>`;
 }
 function complementCallout() {
   const complement = state.complement;

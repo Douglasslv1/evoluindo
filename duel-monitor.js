@@ -296,6 +296,71 @@
     true
   );
 
+  // Modo telão: chave, ranking do nivelamento e pódio em tela cheia para o projetor da sala.
+  // Usa a mesma visualização da chave ao vivo, sem os controles do professor (W.O. e situação de cada aluno).
+  let projector = null;
+  function closeProjector() {
+    if (!projector) return;
+    clearInterval(projector.timer);
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    projector.overlay.remove();
+    document.documentElement.style.overflow = projector.pageOverflow;
+    projector.opener?.focus({ preventScroll: true });
+    projector = null;
+  }
+  async function openProjector(id, opener) {
+    closeProjector();
+    const overlay = document.createElement('div');
+    overlay.className = 'projector';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Modo telão do campeonato');
+    overlay.innerHTML = `<header class="projector-head"><div><small>EVOLUINDO · CAMPEONATO AO VIVO</small><h1 id="projector-title">Carregando…</h1></div><div class="projector-actions"><button type="button" class="ghost" data-projector-full>⛶ Tela cheia</button><button type="button" class="primary" data-projector-close>Fechar ✕</button></div></header><div class="projector-body"><span class="muted">Carregando a chave…</span></div>`;
+    document.body.append(overlay);
+    const body = overlay.querySelector('.projector-body'),
+      title = overlay.querySelector('#projector-title');
+    const refresh = async () => {
+      if (document.hidden || !projector) return;
+      try {
+        const data = await originalApi('championship-live', { id });
+        if (!projector) return;
+        title.textContent = data.championship.title;
+        // Redesenhar a chave não deve mudar a posição de rolagem do telão.
+        const scroll = overlay.scrollTop;
+        renderLiveTree(body, data, false);
+        overlay.scrollTop = scroll;
+        // Encerrado, o pódio não muda mais: para de atualizar.
+        if (data.championship.status === 'finished') clearInterval(projector.timer);
+      } catch (error) {
+        body.innerHTML = `<p class="muted">${esc(error.message)}</p>`;
+      }
+    };
+    // A página de trás não rola enquanto o telão está aberto.
+    projector = {
+      overlay,
+      opener,
+      pageOverflow: document.documentElement.style.overflow,
+      timer: setInterval(refresh, 3000)
+    };
+    document.documentElement.style.overflow = 'hidden';
+    overlay.querySelector('[data-projector-close]').onclick = closeProjector;
+    overlay.querySelector('[data-projector-full]').onclick = () =>
+      overlay.requestFullscreen?.().catch(() => {
+        if (typeof toast === 'function') toast('O navegador não permitiu a tela cheia. Use F11.');
+      });
+    overlay.querySelector('[data-projector-close]').focus({ preventScroll: true });
+    await refresh();
+    overlay.scrollTop = 0;
+  }
+  document.addEventListener('click', event => {
+    const button = event.target.closest('[data-projector]');
+    if (button) openProjector(button.dataset.projector, button);
+  });
+  document.addEventListener('keydown', event => {
+    // Na tela cheia, o Esc do navegador só sai da tela cheia; fora dela, fecha o telão.
+    if (event.key === 'Escape' && projector && !document.fullscreenElement) closeProjector();
+  });
+
   new MutationObserver(() => {
     attachMonitor();
     focusIndicators();

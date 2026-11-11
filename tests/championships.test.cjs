@@ -555,6 +555,24 @@ test('modo demonstração cria alunos fictícios e avança cada etapa até o cam
     const finished = (await service.store.get('championships', { id: championship.id }))[0];
     assert.equal(finished.status, 'finished');
     assert.ok(finished.champion_id && finished.runner_up_id && finished.third_id);
+    // Histórico do professor: pódio com nomes e data de encerramento.
+    const names = Object.fromEntries(
+        (await service.store.get('students', { class_id: classroom.id })).map(student => [
+          student.id,
+          student.name
+        ])
+      ),
+      listed = (await service.execute('teacher-state', {}, teacher)).championships.find(
+        item => item.id === championship.id
+      );
+    assert.deepEqual(listed.podium, {
+      champion: names[finished.champion_id],
+      runner_up: names[finished.runner_up_id],
+      third: names[finished.third_id]
+    });
+    assert.ok(listed.finished_at);
+    const live = await service.execute('championship-live', { id: championship.id }, teacher);
+    assert.ok(live.championship.finished_at, 'O telão recebe a data de encerramento.');
   } finally {
     if (path.dirname(path.resolve(directory)) !== base) throw Error('Diretório de teste inválido.');
     fs.rmSync(directory, { recursive: true, force: true });
