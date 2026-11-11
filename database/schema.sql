@@ -40,6 +40,29 @@ create table if not exists public.interface_class_subjects (
   created_at timestamptz not null default now(),
   unique(class_id,subject_id)
 );
+create table if not exists public.interface_lessons (
+  id uuid primary key,
+  subject_id uuid not null references public.interface_subjects(id) on delete cascade,
+  legacy_lesson_id integer,
+  title text not null,
+  subtitle text not null default '',
+  content text not null default '',
+  topics jsonb not null default '[]',
+  minutes integer not null default 50 check (minutes between 5 and 600),
+  position integer not null default 1 check (position > 0),
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  unique(subject_id,legacy_lesson_id),
+  unique(subject_id,position)
+);
+create table if not exists public.interface_class_lessons (
+  id uuid primary key,
+  class_id uuid not null references public.interface_classes(id) on delete cascade,
+  lesson_id uuid not null references public.interface_lessons(id) on delete cascade,
+  published boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique(class_id,lesson_id)
+);
 create table if not exists public.interface_question_banks (
   id uuid primary key,
   subject_id uuid not null references public.interface_subjects(id) on delete cascade,
@@ -197,6 +220,8 @@ create index if not exists interface_submissions_student on public.interface_sub
 create index if not exists interface_submissions_class on public.interface_submissions(class_id);
 create index if not exists interface_class_subjects_class on public.interface_class_subjects(class_id);
 create index if not exists interface_class_subjects_subject on public.interface_class_subjects(subject_id);
+create index if not exists interface_lessons_subject on public.interface_lessons(subject_id);
+create index if not exists interface_class_lessons_class on public.interface_class_lessons(class_id);
 create index if not exists interface_question_banks_subject on public.interface_question_banks(subject_id);
 create index if not exists interface_questions_bank on public.interface_questions(bank_id);
 create index if not exists interface_simulations_class on public.interface_simulations(class_id);
@@ -232,6 +257,8 @@ alter table public.interface_settings enable row level security;
 alter table public.interface_classes enable row level security;
 alter table public.interface_subjects enable row level security;
 alter table public.interface_class_subjects enable row level security;
+alter table public.interface_lessons enable row level security;
+alter table public.interface_class_lessons enable row level security;
 alter table public.interface_question_banks enable row level security;
 alter table public.interface_questions enable row level security;
 alter table public.interface_simulations enable row level security;
@@ -246,7 +273,7 @@ alter table public.interface_students enable row level security;
 alter table public.interface_submissions enable row level security;
 alter table public.interface_limits enable row level security;
 alter table public.interface_schema_migrations enable row level security;
-revoke all on public.interface_settings,public.interface_classes,public.interface_subjects,public.interface_class_subjects,public.interface_question_banks,public.interface_questions,public.interface_simulations,public.interface_simulation_attempts,public.interface_xp_events,public.interface_championships,public.interface_championship_participants,public.interface_duel_matches,public.interface_duel_attempts,public.interface_focus_events,public.interface_students,public.interface_submissions,public.interface_limits,public.interface_schema_migrations from anon,authenticated;
-grant all on public.interface_settings,public.interface_classes,public.interface_subjects,public.interface_class_subjects,public.interface_question_banks,public.interface_questions,public.interface_simulations,public.interface_simulation_attempts,public.interface_xp_events,public.interface_championships,public.interface_championship_participants,public.interface_duel_matches,public.interface_duel_attempts,public.interface_focus_events,public.interface_students,public.interface_submissions,public.interface_limits,public.interface_schema_migrations to service_role;
+revoke all on public.interface_settings,public.interface_classes,public.interface_subjects,public.interface_class_subjects,public.interface_lessons,public.interface_class_lessons,public.interface_question_banks,public.interface_questions,public.interface_simulations,public.interface_simulation_attempts,public.interface_xp_events,public.interface_championships,public.interface_championship_participants,public.interface_duel_matches,public.interface_duel_attempts,public.interface_focus_events,public.interface_students,public.interface_submissions,public.interface_limits,public.interface_schema_migrations from anon,authenticated;
+grant all on public.interface_settings,public.interface_classes,public.interface_subjects,public.interface_class_subjects,public.interface_lessons,public.interface_class_lessons,public.interface_question_banks,public.interface_questions,public.interface_simulations,public.interface_simulation_attempts,public.interface_xp_events,public.interface_championships,public.interface_championship_participants,public.interface_duel_matches,public.interface_duel_attempts,public.interface_focus_events,public.interface_students,public.interface_submissions,public.interface_limits,public.interface_schema_migrations to service_role;
 revoke all on function public.interface_take_limit(text,integer) from public,anon,authenticated;
 grant execute on function public.interface_take_limit(text,integer) to service_role;

@@ -1,7 +1,7 @@
 -- Execute no SQL Editor do Supabase depois de database/schema.sql.
 -- Esta verificação é somente leitura e não exibe dados de alunos.
 with expected(name) as (values
-  ('interface_settings'),('interface_classes'),('interface_students'),('interface_subjects'),
+  ('interface_settings'),('interface_classes'),('interface_students'),('interface_subjects'),('interface_lessons'),('interface_class_lessons'),
   ('interface_class_subjects'),('interface_question_banks'),('interface_questions'),
   ('interface_simulations'),('interface_simulation_attempts'),('interface_xp_events'),
   ('interface_championships'),('interface_championship_participants'),('interface_duel_matches'),
