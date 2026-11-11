@@ -86,6 +86,7 @@ A Prova Padrão Grau Técnico não foi fornecida. A aula 10 oferece uma revisão
 ## Verificação
 
 - `npm run check`: sintaxe dos arquivos da aplicação.
+- `npm run format` / `npm run format:check`: formata ou confere o estilo do código com o Prettier (após `npm install`).
 - `npm test`: conteúdo, fórmulas, todas as 40 missões, bloqueios, contas, XP idempotente, devolutivas, isolamento entre alunos, reinício e recuperação de PIN.
 - `npm run build`: gera dist com somente index.html, course.css, course-app.js, study.js e study.css. Conteúdo das aulas e correção ficam em lib, usados pela API.
 - Com o servidor aberto, `node tests/http-smoke.cjs`: verifica HTTP, origem, sessão e bloqueio de arquivos privados, sem criar conta.
@@ -100,7 +101,9 @@ A verificação inclui testes de conteúdo, correção, contas, bloqueios e pres
 - lib/universal.cjs: adaptação do conteúdo, preservando IDs de missão e XP.
 - lib/course.cjs: currículo, textos, tempos e missões.
 - lib/grader.cjs e lib/formula.cjs: correção e interpretador limitado.
-- lib/service.cjs, lib/store.cjs, api/index.js: contas, autorização, persistência e API.
+- api/index.js e lib/service.cjs: entrada da API; aplica limites de acesso, permissões e encaminha cada ação.
+- lib/service/: ações separadas por área — `auth` (acesso e PIN), `lessons` (aulas e entregas), `simulations`, `questions` (bancos de perguntas), `championships` (campeonatos e duelos) e `classes` (turmas, disciplinas e relatórios). `context.cjs` reúne sessão, caches e regras compartilhadas; `util.cjs`, validação e senhas.
+- lib/store.cjs: persistência local (arquivo) ou no Supabase.
 - database/schema.sql: estrutura do banco de produção.
 - server.cjs: servidor local; só serve os três arquivos públicos e a API.
 - vercel.json: publicação; .env.example: nomes das variáveis, sem credenciais reais.
