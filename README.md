@@ -1,6 +1,6 @@
 # Interface — Laboratório digital (versão 3)
 
-Curso universal de Informática Básica: dez aulas de 180 minutos, 80 estações de estudo, 40 missões, acesso de alunos, XP e controle do professor. Os exemplos atendem a estudos, vida cotidiana e diferentes áreas profissionais. Visual em verde escuro inspirado na apresentação original.
+Curso universal de Informática Básica: dez aulas de 180 minutos, 80 estações de estudo, 40 missões, acesso de alunos, XP e controle do professor. Os exemplos atendem a estudos, vida cotidiana e diferentes áreas profissionais. Visual em tons de areia e azul da identidade Evoluindo.
 
 ## Testar no computador
 
