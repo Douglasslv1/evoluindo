@@ -7,7 +7,9 @@
   let rendering = false;
   if (typeof xp === 'function' && !xp.evoluindo) {
     const activityXp = xp;
+    // Usa o total calculado no servidor (missões, simulados e duelos); a soma local fica só como reserva.
     xp = function () {
+      if (state?.xpStatement) return state.xpStatement.total;
       return (
         activityXp() + (state?.xpEvents || []).reduce((total, event) => total + Number(event.xp || 0), 0)
       );
@@ -630,47 +632,7 @@
       .forEach(button => (button.onclick = () => startDuel(button.dataset.playDuel)));
   }
 
-  function unifiedXpViews() {
-    if (typeof state === 'undefined') return;
-    if (state.role === 'teacher' && typeof report !== 'undefined' && report) {
-      const rows = document.querySelectorAll('.roster tbody tr');
-      rows.forEach((row, index) => {
-        const student = report.students[index];
-        if (!student) return;
-        const activity = (report.submissions || [])
-            .filter(item => item.student_id === student.id && item.status === 'approved')
-            .reduce((total, item) => total + Number(item.xp || 0), 0),
-          extra = (report.xpEvents || [])
-            .filter(item => item.student_id === student.id)
-            .reduce((total, item) => total + Number(item.xp || 0), 0),
-          cell = row.children[1];
-        if (cell && !cell.dataset.unifiedXp) {
-          cell.dataset.unifiedXp = 'true';
-          cell.innerHTML = `<strong>${Number(activity + extra).toLocaleString('pt-BR')}</strong>${extra ? `<small>${extra.toLocaleString('pt-BR')} XP em simulados e duelos</small>` : ''}`;
-        }
-      });
-      return;
-    }
-    if (state.role === 'student') {
-      const screen = document.getElementById('screen'),
-        passport = screen?.querySelector('.passport-card');
-      if (!passport || screen.querySelector('#xp-history')) return;
-      const events = state.xpEvents || [];
-      if (!events.length) return;
-      const section = document.createElement('section');
-      section.id = 'xp-history';
-      section.className = 'xp-history';
-      section.innerHTML = `<div class="eyebrow">EXTRATO DE XP</div><h2>Simulados e duelos</h2><div>${events
-        .slice()
-        .reverse()
-        .map(
-          event =>
-            `<article><span>${escapeHtml(event.description)}</span><strong>+${Number(event.xp).toLocaleString('pt-BR')} XP</strong></article>`
-        )
-        .join('')}</div>`;
-      passport.insertAdjacentElement('afterend', section);
-    }
-  }
+  // O extrato de XP e os totais por aluno agora vêm do servidor (xpStatement e summaries) e são desenhados em course-app.js.
 
   function coreCourseContext() {
     if (typeof state === 'undefined') return;
@@ -793,7 +755,6 @@
       studentSubjects();
       studentSimulations();
       studentChampionships();
-      unifiedXpViews();
       coreCourseContext();
     } finally {
       rendering = false;

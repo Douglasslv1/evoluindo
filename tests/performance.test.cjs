@@ -161,9 +161,10 @@ test('atualização do aluno não lê tabelas inteiras nem refaz as aulas fundam
       [],
       'A atualização não deve gravar nada.'
     );
-    assert.equal(
-      calls.filter(call => call.table === 'settings').length,
-      0,
+    // A única leitura de settings permitida é a configuração da nota complementar desta turma, por id.
+    assert.deepEqual(
+      calls.filter(call => call.table === 'settings').map(call => call.filters.id),
+      ['complement:' + classes[0].id],
       'A disciplina fundamental deve vir do cache.'
     );
     assert.equal(state.lessons.find(lesson => lesson.legacy_lesson_id === 1).published, true);

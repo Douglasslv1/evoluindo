@@ -270,26 +270,62 @@ function passport() {
   activeTask = null;
   activeLesson = null;
   $('#screen').innerHTML =
-    `<section class="page"><div class="eyebrow">SEU PASSAPORTE</div><h1>Cada conquista<br><span>conta uma história.</span></h1><div class="passport-card"><span class="avatar large">${e(state.student.name.slice(0, 1).toUpperCase())}</span><div><h2>${e(state.student.name)}</h2><p>${e(state.classroom.name)} · ${e(badgeName())}</p><button class="text-btn" id="show-access">Ver meu código de acesso ↗</button></div><strong>${format(xp())}<small> XP</small></strong></div><h2>Insígnias da jornada</h2><p class="muted">Cada aula com as três missões essenciais aprovadas recebe uma insígnia. Bônus são opcionais.</p><div class="badges">${state.lessons
+    `<section class="page"><div class="eyebrow">SEU PASSAPORTE</div><h1>Cada conquista<br><span>conta uma história.</span></h1><div class="passport-card"><span class="avatar large">${e(state.student.name.slice(0, 1).toUpperCase())}</span><div><h2>${e(state.student.name)}</h2><p>${e(state.classroom.name)} · ${e(badgeName())}</p><button class="text-btn" id="show-access">Ver meu código de acesso ↗</button></div><strong>${format(xp())}<small> XP</small></strong></div>${xpStatementSection()}<h2>Insígnias da jornada</h2><p class="muted">Cada aula com as três missões essenciais aprovadas recebe uma insígnia. Bônus são opcionais.</p><div class="badges">${state.lessons
+      // Insígnias existem para as aulas fundamentais (missões l1-… a l10-…), identificadas pelo número original.
+      .filter(l => l.legacy_lesson_id)
       .map(l => {
-        const core = state.progress.filter(
-          r =>
-            r.task_id.startsWith('l' + l.id + '-') && !r.task_id.endsWith('bonus') && r.status === 'approved'
-        ).length;
-        return `<div class="badge ${core >= 3 ? 'earned' : ''}"><span>${icons[l.id - 1]}</span><b>Aula ${l.id}</b><small>${core >= 3 ? 'Conquistada' : 'Em construção'}</small></div>`;
+        const number = l.legacy_lesson_id,
+          core = state.progress.filter(
+            r =>
+              r.task_id.startsWith('l' + number + '-') &&
+              !r.task_id.endsWith('bonus') &&
+              r.status === 'approved'
+          ).length;
+        return `<div class="badge ${core >= 3 ? 'earned' : ''}"><span>${icons[number - 1] || '★'}</span><b>Aula ${number}</b><small>${core >= 3 ? 'Conquistada' : 'Em construção'}</small></div>`;
       })
       .join(
         ''
-      )}</div><h2>Minhas entregas</h2><div class="delivery-list">${state.progress.length ? state.progress.map(r => `<article><div><b>${e(r.task_id)}</b><span class="pill">${labelStatus(r.status)}</span></div><p>${e(r.feedback)}</p><strong>${r.status === 'approved' ? '+' + r.xp + ' XP' : 'XP após aprovação'}</strong></article>`).join('') : '<p class="muted">Suas entregas aparecerão aqui quando você começar as missões.</p>'}</div><div class="callout"><b>Avaliação oficial da disciplina</b><p>${state.student.official_grade === null ? 'O professor ainda não registrou a nota oficial.' : `Nota registrada: ${e(state.student.official_grade)} / 10. ${e(state.student.grade_note)}`}</p>XP acompanha sua prática e não substitui esta nota.</div><button class="primary" id="export-progress">Baixar meu resumo ↓</button></section>`;
+      )}</div><h2>Minhas entregas</h2><div class="delivery-list">${state.progress.length ? state.progress.map(r => `<article><div><b>${e(r.task_id)}</b><span class="pill">${labelStatus(r.status)}</span></div><p>${e(r.feedback)}</p><strong>${r.status === 'approved' ? '+' + r.xp + ' XP' : 'XP após aprovação'}</strong></article>`).join('') : '<p class="muted">Suas entregas aparecerão aqui quando você começar as missões.</p>'}</div><div class="callout"><b>Avaliação oficial da disciplina</b><p>${state.student.official_grade === null ? 'O professor ainda não registrou a nota oficial.' : `Nota registrada: ${e(state.student.official_grade)} / 10. ${e(state.student.grade_note)}`}</p>XP acompanha sua prática e não substitui esta nota.</div>${complementCallout()}<button class="primary" id="export-progress">Baixar meu resumo ↓</button></section>`;
   $('#show-access').onclick = () => accessCard();
-  $('#export-progress').onclick = () =>
+  $('#export-progress').onclick = () => {
+    const totals = state.xpStatement?.totals,
+      complement = state.complement;
     downloadText(
       'minha-jornada-interface.txt',
-      `INTERFACE\n${state.student.name}\nTurma: ${state.classroom.name}\nXP: ${xp()}\n\n` +
+      `INTERFACE\n${state.student.name}\nTurma: ${state.classroom.name}\nXP: ${xp()}\n` +
+        (totals
+          ? `Missões: ${totals.mission} XP · Simulados: ${totals.simulation} XP · Duelos: ${totals.duel} XP\n`
+          : '') +
+        (complement ? `Nota complementar: ${complement.grade} de ${complement.maxPoints}\n` : '') +
+        '\n' +
         state.progress
           .map(r => `${r.task_id}: ${labelStatus(r.status)} (${r.xp} XP)\n${r.feedback}`)
           .join('\n\n')
     );
+  };
+}
+// Extrato de XP do aluno: totais por origem e os lançamentos mais recentes (dados do servidor).
+function xpStatementSection() {
+  const statement = state.xpStatement;
+  if (!statement) return '';
+  const labels = { mission: 'Missões', simulation: 'Simulados', duel: 'Duelos', other: 'Outros' },
+    entries = statement.entries.slice(0, 30),
+    date = value => (value ? new Date(value).toLocaleDateString('pt-BR') : '');
+  return `<section class="xp-history" id="xp-history"><div class="eyebrow">EXTRATO DE XP</div><h2>De onde vem o seu XP</h2><div class="xp-totals">${[
+    'mission',
+    'simulation',
+    'duel'
+  ]
+    .map(key => `<div><small>${labels[key]}</small><b>${format(statement.totals[key])} XP</b></div>`)
+    .join(
+      ''
+    )}</div>${entries.length ? `<div>${entries.map(entry => `<article><span>${e(entry.description)}<small>${labels[entry.source] || ''}${entry.date ? ' · ' + date(entry.date) : ''}</small></span><strong>+${format(entry.xp)} XP</strong></article>`).join('')}</div>${statement.entries.length > entries.length ? `<p class="muted small">Mostrando os ${entries.length} lançamentos mais recentes de ${statement.entries.length}.</p>` : ''}` : '<p class="muted">Seu XP aparecerá aqui quando você concluir missões, simulados ou duelos.</p>'}</section>`;
+}
+function complementCallout() {
+  const complement = state.complement;
+  if (!complement) return '';
+  const value = n => String(n).replace('.', ',');
+  return `<div class="callout"><b>Nota complementar</b><p>${value(complement.grade)} de ${value(complement.maxPoints)} ponto(s), calculada pelo seu XP: ${format(complement.targetXp)} XP valem a nota máxima.</p>Ela é registrada à parte e não substitui a avaliação oficial.</div>`;
 }
 async function openLesson(id) {
   if (busy) return;
@@ -751,11 +787,10 @@ function teacherPage() {
     `<section class="page"><div class="eyebrow">SALA DE CONTROLE / PROFESSOR</div><div class="section-line"><div><h1>Uma turma.<br><span>Muitos caminhos.</span></h1><p class="lead">Abra as aulas no dia do encontro. Acompanhe a prática e ajude cada aluno a avançar.</p></div><button class="primary" id="new-class">+ Criar turma</button></div><div class="class-toolbar"><label>Turma em acompanhamento<select id="class-select"><option value="">Selecione uma turma</option>${teacher.classes.map(c => `<option value="${c.id}" ${c.id === selectedClass ? 'selected' : ''}>${e(c.name)}</option>`).join('')}</select></label>${cls ? `<div class="class-code"><small>CÓDIGO PARA PRIMEIRO ACESSO</small><b>${e(cls.code)}</b></div><button class="ghost" id="toggle-enrollment">${cls.enrollment_open ? 'Fechar inscrições' : 'Abrir inscrições'}</button><button class="ghost" id="reload-report">↻ Atualizar</button>` : ''}</div>${
       !cls
         ? '<div class="empty"><h2>Sua sala começa aqui.</h2><p>Crie uma turma para gerar o código de acesso. As dez aulas começam bloqueadas.</p></div>'
-        : `<div class="teacher-metrics"><article><span>ALUNOS CADASTRADOS</span><strong>${students.length}</strong></article><article><span>AULAS ABERTAS</span><strong>${cls.released.length}<small> / 10</small></strong></article><article><span>ENTREGAS PARA AVALIAR</span><strong>${pending.length}</strong></article><article><span>MISSÕES APROVADAS</span><strong>${submissions.filter(s => s.status === 'approved').length}</strong></article></div><div class="section-line"><div><div class="eyebrow">VOCÊ DEFINE O RITMO</div><h2>Liberação por aula.</h2></div><span class="muted small">Fechar uma aula preserva o progresso.</span></div><div class="release-grid">${teacher.curriculum.map(l => `<article class="release-card ${cls.released.includes(l.id) ? 'released' : ''}"><span class="eyebrow">AULA ${String(l.id).padStart(2, '0')}</span><h3>${e(l.title)}</h3><p>${e(l.subtitle)}</p><div class="button-row"><button class="${cls.released.includes(l.id) ? 'ghost' : 'primary'}" data-release="${l.id}">${cls.released.includes(l.id) ? 'Fechar aula' : 'Liberar aula ↗'}</button><button class="text-btn" data-preview="${l.id}">Explorar</button></div></article>`).join('')}</div><div class="section-line"><div><div class="eyebrow">DEVOLUTIVAS QUE ENSINAM</div><h2>Entregas e projetos.</h2></div><label class="compact-label">Mostrar<select id="delivery-filter"><option value="pending">Aguardando avaliação</option><option value="all">Todas as entregas</option></select></label></div><div id="teacher-deliveries"></div><div class="section-line"><div><div class="eyebrow">ACOMPANHAMENTO INDIVIDUAL</div><h2>Alunos da turma.</h2></div><button class="ghost" id="export-class">Baixar relatório CSV ↓</button></div><div class="table-scroll roster"><table><thead><tr><th>Aluno e código pessoal</th><th>XP</th><th>Missões</th><th>Nota oficial</th><th>Ações</th></tr></thead><tbody>${students
+        : `<div class="teacher-metrics"><article><span>ALUNOS CADASTRADOS</span><strong>${students.length}</strong></article><article><span>AULAS ABERTAS</span><strong>${cls.released.length}<small> / 10</small></strong></article><article><span>ENTREGAS PARA AVALIAR</span><strong>${pending.length}</strong></article><article><span>MISSÕES APROVADAS</span><strong>${submissions.filter(s => s.status === 'approved').length}</strong></article></div><div class="section-line"><div><div class="eyebrow">VOCÊ DEFINE O RITMO</div><h2>Liberação por aula.</h2></div><span class="muted small">Fechar uma aula preserva o progresso.</span></div><div class="release-grid">${teacher.curriculum.map(l => `<article class="release-card ${cls.released.includes(l.id) ? 'released' : ''}"><span class="eyebrow">AULA ${String(l.id).padStart(2, '0')}</span><h3>${e(l.title)}</h3><p>${e(l.subtitle)}</p><div class="button-row"><button class="${cls.released.includes(l.id) ? 'ghost' : 'primary'}" data-release="${l.id}">${cls.released.includes(l.id) ? 'Fechar aula' : 'Liberar aula ↗'}</button><button class="text-btn" data-preview="${l.id}">Explorar</button></div></article>`).join('')}</div><div class="section-line"><div><div class="eyebrow">DEVOLUTIVAS QUE ENSINAM</div><h2>Entregas e projetos.</h2></div><label class="compact-label">Mostrar<select id="delivery-filter"><option value="pending">Aguardando avaliação</option><option value="all">Todas as entregas</option></select></label></div><div id="teacher-deliveries"></div><div class="section-line"><div><div class="eyebrow">ACOMPANHAMENTO INDIVIDUAL</div><h2>Alunos da turma.</h2></div><div class="button-row"><button class="ghost" id="complement-settings">Nota complementar ⚙</button><button class="ghost" id="export-class">Baixar relatório CSV ↓</button></div></div><div class="table-scroll roster"><table><thead><tr><th>Aluno e código pessoal</th><th>XP</th><th>Missões</th><th>Nota oficial</th><th>Nota complementar</th><th>Ações</th></tr></thead><tbody>${students
             .map(s => {
-              const records = submissions.filter(r => r.student_id === s.id),
-                total = records.reduce((n, r) => n + (r.status === 'approved' ? r.xp : 0), 0);
-              return `<tr><td><b>${e(s.name)}</b><small>${e(s.access_code)}</small></td><td><strong>${format(total)}</strong></td><td>${records.filter(r => r.status === 'approved').length} / 40</td><td>${s.official_grade === null ? 'Não registrada' : e(s.official_grade) + ' / 10'}</td><td><button class="text-btn" data-grade="${s.id}">Registrar nota</button><button class="text-btn" data-pin="${s.id}">Redefinir PIN</button></td></tr>`;
+              const records = submissions.filter(r => r.student_id === s.id);
+              return `<tr><td><b>${e(s.name)}</b><small>${e(s.access_code)}</small></td><td>${rosterXpCell(s.id)}</td><td>${records.filter(r => r.status === 'approved').length} / 40</td><td>${s.official_grade === null ? 'Não registrada' : e(s.official_grade) + ' / 10'}</td><td>${complementCell(s.id)}</td><td><button class="text-btn" data-grade="${s.id}">Registrar nota</button><button class="text-btn" data-pin="${s.id}">Redefinir PIN</button></td></tr>`;
             })
             .join(
               ''
@@ -803,6 +838,7 @@ function teacherPage() {
   $$('[data-pin]').forEach(b => (b.onclick = () => resetPin(b.dataset.pin)));
   $$('[data-grade]').forEach(b => (b.onclick = () => officialGrade(b.dataset.grade)));
   $('#export-class').onclick = exportClass;
+  $('#complement-settings').onclick = complementSettings;
 }
 function createClass() {
   modal(
@@ -935,6 +971,61 @@ function officialGrade(id) {
     }
   };
 }
+// Totais por aluno calculados no servidor (class-report → summaries).
+function studentSummary(id) {
+  return (
+    report?.summaries?.find(item => item.student_id === id) || {
+      totals: { mission: 0, simulation: 0, duel: 0, other: 0 },
+      total: 0,
+      complement_grade: null
+    }
+  );
+}
+function rosterXpCell(id) {
+  const summary = studentSummary(id),
+    extra = summary.totals.simulation + summary.totals.duel;
+  return `<strong>${format(summary.total)}</strong>${extra ? `<small>${format(summary.totals.mission)} em missões · ${format(extra)} em simulados e duelos</small>` : ''}`;
+}
+function complementCell(id) {
+  if (!report?.complement) return '<span class="muted">Desativada</span>';
+  const grade = studentSummary(id).complement_grade ?? 0;
+  return `<strong>${e(String(grade).replace('.', ','))}</strong><small>de ${e(String(report.complement.maxPoints).replace('.', ','))}</small>`;
+}
+function complementSettings() {
+  const current = report.complement,
+    suggested = current?.targetXp || 4400;
+  modal(
+    `<div class="eyebrow">NOTA COMPLEMENTAR / SEPARADA DA NOTA OFICIAL</div><h2>${e(report.classroom.name)}</h2><p>A nota complementar converte o XP do aluno (missões, simulados e duelos) em pontos extras, proporcionalmente, até o máximo definido. Ela não altera a nota oficial: aparece ao lado dela no relatório, no CSV e no passaporte do aluno.</p><form id="complement-form"><div class="form-columns"><label>Pontos máximos (0 desativa)<input name="maxPoints" type="number" min="0" max="10" step="0.1" required value="${current?.maxPoints ?? 0}"></label><label>XP para a nota máxima<input name="targetXp" type="number" min="100" max="100000" step="1" required value="${suggested}"></label></div><p class="muted small" id="complement-preview"></p><p id="complement-error" class="form-error" role="alert"></p><button class="primary" type="submit">Salvar configuração</button></form>`
+  );
+  const form = $('#complement-form'),
+    preview = () => {
+      const max = Number(form.elements.maxPoints.value),
+        target = Number(form.elements.targetXp.value);
+      $('#complement-preview').textContent =
+        max > 0 && target > 0
+          ? `Exemplo: ${format(Math.round(target / 2))} XP valem ${String(Math.round((max / 2) * 10) / 10).replace('.', ',')} ponto(s); ${format(target)} XP ou mais valem ${String(max).replace('.', ',')}. As 40 missões somam 4.400 XP.`
+          : 'Com 0 ponto máximo, a nota complementar fica desativada para esta turma.';
+    };
+  form.oninput = preview;
+  preview();
+  form.onsubmit = async ev => {
+    ev.preventDefault();
+    ev.submitter.disabled = true;
+    try {
+      await api('set-complement', {
+        classId: report.classroom.id,
+        maxPoints: Number(form.elements.maxPoints.value),
+        targetXp: Number(form.elements.targetXp.value)
+      });
+      $('#modal').close();
+      await teacherHome();
+      toast('Configuração da nota complementar salva.');
+    } catch (err) {
+      $('#complement-error').textContent = err.message;
+      ev.submitter.disabled = false;
+    }
+  };
+}
 function exportClass() {
   const csv = v =>
     '"' +
@@ -942,18 +1033,37 @@ function exportClass() {
       .replace(/^[=+@-]/, "'$&")
       .replace(/"/g, '""') +
     '"';
+  // Notas com vírgula decimal, como o Excel em português espera em um CSV separado por ponto e vírgula.
+  const decimal = value => (value === null || value === undefined ? '' : String(value).replace('.', ','));
   const rows = [
-    ['Aluno', 'Código pessoal', 'Turma', 'XP', 'Missões aprovadas', 'Entregas pendentes', 'Nota oficial'],
+    [
+      'Aluno',
+      'Código pessoal',
+      'Turma',
+      'XP total',
+      'XP em missões',
+      'XP em simulados',
+      'XP em duelos',
+      'Missões aprovadas',
+      'Entregas pendentes',
+      'Nota oficial',
+      'Nota complementar'
+    ],
     ...report.students.map(s => {
-      const r = report.submissions.filter(r => r.student_id === s.id);
+      const r = report.submissions.filter(r => r.student_id === s.id),
+        summary = studentSummary(s.id);
       return [
         s.name,
         s.access_code,
         report.classroom.name,
-        r.reduce((n, r) => n + (r.status === 'approved' ? r.xp : 0), 0),
+        summary.total,
+        summary.totals.mission,
+        summary.totals.simulation,
+        summary.totals.duel,
         r.filter(r => r.status === 'approved').length,
         r.filter(r => r.status === 'pending').length,
-        s.official_grade ?? 'Não registrada'
+        s.official_grade === null ? 'Não registrada' : decimal(s.official_grade),
+        report.complement ? decimal(summary.complement_grade) : 'Desativada'
       ];
     })
   ];

@@ -52,20 +52,15 @@
       if (metrics[3]) metrics[3].textContent = approved;
       rows.forEach((row, index) => {
         const student = report.students[index],
-          records = submissions.filter(item => item.student_id === student.id),
-          activity = records
-            .filter(item => item.status === 'approved')
-            .reduce((total, item) => total + Number(item.xp || 0), 0),
-          extra = (report.xpEvents || [])
-            .filter(item => item.student_id === student.id)
-            .reduce((total, item) => total + Number(item.xp || 0), 0);
-        if (row.children[1])
-          row.children[1].innerHTML = `<strong>${Number(activity + extra).toLocaleString('pt-BR')}</strong>${extra ? `<small>${extra.toLocaleString('pt-BR')} XP em simulados e duelos</small>` : ''}`;
+          records = submissions.filter(item => item.student_id === student.id);
+        // XP e nota complementar vêm dos totais do servidor (report.summaries), com as mesmas funções da tabela.
+        if (row.children[1]) row.children[1].innerHTML = rosterXpCell(student.id);
         if (row.children[2])
           row.children[2].textContent = `${records.filter(item => item.status === 'approved').length} / 40`;
         if (row.children[3])
           row.children[3].textContent =
             student.official_grade === null ? 'Não registrada' : student.official_grade + ' / 10';
+        if (row.children[4]) row.children[4].innerHTML = complementCell(student.id);
       });
       const signature = submissions.map(item => `${item.id}:${item.status}:${item.updated_at}`).join('|');
       if (signature !== deliverySignature && typeof renderDeliveries === 'function') {

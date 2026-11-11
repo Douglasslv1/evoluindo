@@ -2080,3 +2080,36 @@ summary b {
   padding: 0;
   font-size: 10px;
 }
+.xp-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.xp-totals > div {
+  padding: 12px 14px;
+  border: 1px solid #d5dde0;
+  border-radius: 7px;
+  background: #fff;
+}
+.xp-totals small,
+.xp-history article small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+}
+.xp-totals b {
+  display: block;
+  margin-top: 4px;
+  color: var(--evo-navy);
+  font-size: 18px;
+}
+.roster td small {
+  display: block;
+  margin-top: 3px;
+}
+@media (max-width: 600px) {
+  .xp-totals {
+    grid-template-columns: 1fr;
+  }
+}
