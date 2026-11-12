@@ -65,7 +65,15 @@ test('importa JSON novo e legado atomicamente, detecta duplicidade e exporta bac
     assert.equal(exported.format, 'evoluindo-question-bank-v1');
     assert.equal(exported.subject, 'Banco importado');
     assert.equal(exported.questions.length, 2);
-    assert.deepEqual(Object.keys(exported.questions[0]), ['statement', 'options', 'correct', 'explanation']);
+    assert.deepEqual(Object.keys(exported.questions[0]), [
+      'statement',
+      'options',
+      'correct',
+      'explanation',
+      'difficulty'
+    ]);
+    // Arquivos sem o campo importam como média.
+    assert.ok(exported.questions.every(question => question.difficulty === 'medium'));
     await assert.rejects(() => service.execute('export-question-bank', { bankId: bank.id }, null), {
       status: 401
     });

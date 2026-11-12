@@ -2185,3 +2185,22 @@ summary b {
 .projector:fullscreen {
   padding: 36px 64px;
 }
+.difficulty-pill {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: #e3eaee;
+  color: var(--evo-navy);
+}
+.difficulty-pill.easy {
+  background: #dfe9f0;
+  color: #2f5f7a;
+}
+.difficulty-pill.hard {
+  background: #f0dfd6;
+  color: #8a4a2c;
+}

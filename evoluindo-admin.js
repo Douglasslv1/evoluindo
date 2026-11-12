@@ -5,6 +5,12 @@
       char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]
     );
   let rendering = false;
+  // Dificuldade das perguntas: rótulos e resumo por banco (contagens vêm do servidor em difficulty_counts).
+  const difficultyLabels = { easy: 'Fácil', medium: 'Média', hard: 'Difícil' };
+  const difficultyMix = bank => {
+    const counts = bank.difficulty_counts || { easy: 0, medium: bank.question_count || 0, hard: 0 };
+    return `${counts.easy} ${counts.easy === 1 ? 'fácil' : 'fáceis'} · ${counts.medium} ${counts.medium === 1 ? 'média' : 'médias'} · ${counts.hard} ${counts.hard === 1 ? 'difícil' : 'difíceis'}`;
+  };
   if (typeof xp === 'function' && !xp.evoluindo) {
     const activityXp = xp;
     // Usa o total calculado no servidor (missões, simulados e duelos); a soma local fica só como reserva.
@@ -301,7 +307,7 @@
       bankSelect.innerHTML = filtered
         .map(
           bank =>
-            `<option value="${escapeHtml(bank.id)}" data-count="${bank.question_count}">${escapeHtml(bank.name)} · ${bank.question_count} perguntas</option>`
+            `<option value="${escapeHtml(bank.id)}" data-count="${bank.question_count}">${escapeHtml(bank.name)} · ${bank.question_count} perguntas (${difficultyMix(bank)})</option>`
         )
         .join('');
       bankSelect.disabled = !filtered.length;
@@ -383,7 +389,7 @@
       bankSelect.innerHTML = filtered
         .map(
           bank =>
-            `<option value="${escapeHtml(bank.id)}" data-count="${bank.question_count}">${escapeHtml(bank.name)} · ${bank.question_count} perguntas</option>`
+            `<option value="${escapeHtml(bank.id)}" data-count="${bank.question_count}">${escapeHtml(bank.name)} · ${bank.question_count} perguntas (${difficultyMix(bank)})</option>`
         )
         .join('');
       bankSelect.disabled = !filtered.length;
@@ -447,7 +453,7 @@
       banks = (teacher.banks || []).filter(bank => bank.subject_id === subjectId);
     if (!subject) return toast('Disciplina não encontrada.');
     modal(
-      `<div class="eyebrow">${escapeHtml(subject.name)} / CONTEÚDO AVALIATIVO</div><h2>Bancos de perguntas</h2><p>Separe as perguntas por tema, unidade ou finalidade.</p><div class="bank-list">${banks.map(bank => `<article><div><b>${escapeHtml(bank.name)}</b><p>${escapeHtml(bank.description || 'Sem descrição')}</p><small>${bank.question_count} pergunta${bank.question_count === 1 ? '' : 's'} · revisão ${bank.revision}</small></div><button type="button" class="ghost" data-open-bank="${escapeHtml(bank.id)}">Abrir banco</button></article>`).join('') || '<div class="empty compact">Esta disciplina ainda não tem bancos de perguntas.</div>'}</div><form id="bank-form" class="compact-form"><h3>Criar novo banco</h3><label>Nome<input name="name" minlength="2" maxlength="100" required placeholder="Ex.: Unidade 1 · Fundamentos"></label><label>Descrição<input name="description" maxlength="500" placeholder="Como este banco será utilizado?"></label><p id="bank-error" class="form-error" role="alert"></p><button type="submit" class="primary">Criar banco</button></form>`
+      `<div class="eyebrow">${escapeHtml(subject.name)} / CONTEÚDO AVALIATIVO</div><h2>Bancos de perguntas</h2><p>Separe as perguntas por tema, unidade ou finalidade.</p><div class="bank-list">${banks.map(bank => `<article><div><b>${escapeHtml(bank.name)}</b><p>${escapeHtml(bank.description || 'Sem descrição')}</p><small>${bank.question_count} pergunta${bank.question_count === 1 ? '' : 's'} · revisão ${bank.revision}${bank.question_count ? ` · ${difficultyMix(bank)}` : ''}</small></div><button type="button" class="ghost" data-open-bank="${escapeHtml(bank.id)}">Abrir banco</button></article>`).join('') || '<div class="empty compact">Esta disciplina ainda não tem bancos de perguntas.</div>'}</div><form id="bank-form" class="compact-form"><h3>Criar novo banco</h3><label>Nome<input name="name" minlength="2" maxlength="100" required placeholder="Ex.: Unidade 1 · Fundamentos"></label><label>Descrição<input name="description" maxlength="500" placeholder="Como este banco será utilizado?"></label><p id="bank-error" class="form-error" role="alert"></p><button type="submit" class="primary">Criar banco</button></form>`
     );
     document
       .querySelectorAll('[data-open-bank]')
@@ -476,7 +482,7 @@
         bank = data.bank,
         questions = data.questions;
       modal(
-        `<div class="eyebrow">BANCO DE PERGUNTAS / REVISÃO ${bank.revision}</div><div class="subject-heading"><div><h2>${escapeHtml(bank.name)}</h2><p>${escapeHtml(bank.description || 'Cadastre perguntas para utilizar este banco.')}</p></div><button type="button" class="primary" id="new-question">+ Nova pergunta</button></div><div class="question-list">${questions.map((question, index) => `<article><span>${String(index + 1).padStart(2, '0')}</span><div><b>${escapeHtml(question.statement)}</b><small>${question.options.length} alternativas · resposta: ${escapeHtml(question.options[question.correct])}</small></div><div><button type="button" class="text-btn" data-edit-question="${escapeHtml(question.id)}">Editar</button><button type="button" class="text-btn danger" data-delete-question="${escapeHtml(question.id)}">Excluir</button></div></article>`).join('') || '<div class="empty compact">Nenhuma pergunta cadastrada neste banco.</div>'}</div><button type="button" class="ghost" id="back-to-banks">← Voltar aos bancos</button>`
+        `<div class="eyebrow">BANCO DE PERGUNTAS / REVISÃO ${bank.revision}</div><div class="subject-heading"><div><h2>${escapeHtml(bank.name)}</h2><p>${escapeHtml(bank.description || 'Cadastre perguntas para utilizar este banco.')}</p></div><button type="button" class="primary" id="new-question">+ Nova pergunta</button></div><div class="question-list">${questions.map((question, index) => `<article><span>${String(index + 1).padStart(2, '0')}</span><div><b>${escapeHtml(question.statement)}</b><small><span class="difficulty-pill ${escapeHtml(question.difficulty || 'medium')}">${difficultyLabels[question.difficulty] || difficultyLabels.medium}</span> ${question.options.length} alternativas · resposta: ${escapeHtml(question.options[question.correct])}</small></div><div><button type="button" class="text-btn" data-edit-question="${escapeHtml(question.id)}">Editar</button><button type="button" class="text-btn danger" data-delete-question="${escapeHtml(question.id)}">Excluir</button></div></article>`).join('') || '<div class="empty compact">Nenhuma pergunta cadastrada neste banco.</div>'}</div><button type="button" class="ghost" id="back-to-banks">← Voltar aos bancos</button>`
       );
       document.getElementById('new-question').onclick = () => questionForm(bank, null);
       document.getElementById('back-to-banks').onclick = async () => {
@@ -514,7 +520,16 @@
   function questionForm(bank, question) {
     const options = question?.options || ['', '', '', ''];
     modal(
-      `<div class="eyebrow">${escapeHtml(bank.name)} / ${question ? 'EDITAR' : 'NOVA'} PERGUNTA</div><h2>${question ? 'Revise a pergunta.' : 'Cadastre uma pergunta.'}</h2><form id="question-form"><label>Enunciado<textarea name="statement" minlength="5" maxlength="1000" rows="4" required placeholder="Escreva uma pergunta clara e completa.">${escapeHtml(question?.statement || '')}</textarea></label><fieldset class="answer-options"><legend>Alternativas e gabarito</legend>${options.map((option, index) => `<label><input type="radio" name="correct" value="${index}" ${Number(question?.correct ?? 0) === index ? 'checked' : ''} required><span>${String.fromCharCode(65 + index)}</span><input name="option${index}" maxlength="300" required value="${escapeHtml(option)}" placeholder="Alternativa ${String.fromCharCode(65 + index)}"></label>`).join('')}</fieldset><label>Explicação após a resposta <span class="muted">(opcional)</span><textarea name="explanation" maxlength="1500" rows="3" placeholder="Explique por que essa resposta está correta.">${escapeHtml(question?.explanation || '')}</textarea></label><p id="question-error" class="form-error" role="alert"></p><div class="button-row"><button type="submit" class="primary">Salvar pergunta</button><button type="button" class="ghost" id="cancel-question">Cancelar</button></div></form>`
+      `<div class="eyebrow">${escapeHtml(bank.name)} / ${question ? 'EDITAR' : 'NOVA'} PERGUNTA</div><h2>${question ? 'Revise a pergunta.' : 'Cadastre uma pergunta.'}</h2><form id="question-form"><label>Enunciado<textarea name="statement" minlength="5" maxlength="1000" rows="4" required placeholder="Escreva uma pergunta clara e completa.">${escapeHtml(question?.statement || '')}</textarea></label><fieldset class="answer-options"><legend>Alternativas e gabarito</legend>${options.map((option, index) => `<label><input type="radio" name="correct" value="${index}" ${Number(question?.correct ?? 0) === index ? 'checked' : ''} required><span>${String.fromCharCode(65 + index)}</span><input name="option${index}" maxlength="300" required value="${escapeHtml(option)}" placeholder="Alternativa ${String.fromCharCode(65 + index)}"></label>`).join('')}</fieldset><label>Dificuldade<select name="difficulty">${Object.entries(
+        difficultyLabels
+      )
+        .map(
+          ([value, label]) =>
+            `<option value="${value}" ${(question?.difficulty || 'medium') === value ? 'selected' : ''}>${label}</option>`
+        )
+        .join(
+          ''
+        )}</select><small class="muted">Simulados, nivelamentos e duelos alternam os níveis e começam pelas mais fáceis.</small></label><label>Explicação após a resposta <span class="muted">(opcional)</span><textarea name="explanation" maxlength="1500" rows="3" placeholder="Explique por que essa resposta está correta.">${escapeHtml(question?.explanation || '')}</textarea></label><p id="question-error" class="form-error" role="alert"></p><div class="button-row"><button type="submit" class="primary">Salvar pergunta</button><button type="button" class="ghost" id="cancel-question">Cancelar</button></div></form>`
     );
     document.getElementById('cancel-question').onclick = () => openQuestionBank(bank.id);
     document.getElementById('question-form').onsubmit = async event => {
@@ -527,7 +542,8 @@
           statement: form.get('statement'),
           correct: Number(form.get('correct')),
           options: options.map((_, index) => form.get('option' + index)),
-          explanation: form.get('explanation')
+          explanation: form.get('explanation'),
+          difficulty: form.get('difficulty')
         };
       try {
         await api('save-question', payload);

@@ -84,6 +84,10 @@ create table if not exists public.interface_questions (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+-- Dificuldade da pergunta (2026-11-12). Perguntas existentes ficam como média.
+alter table public.interface_questions add column if not exists difficulty text not null default 'medium';
+alter table public.interface_questions drop constraint if exists interface_questions_difficulty_check;
+alter table public.interface_questions add constraint interface_questions_difficulty_check check (difficulty in ('easy','medium','hard'));
 create table if not exists public.interface_simulations (
   id uuid primary key,
   class_id uuid not null references public.interface_classes(id) on delete cascade,
@@ -242,6 +246,7 @@ create table if not exists public.interface_schema_migrations (
   applied_at timestamptz not null default now()
 );
 insert into public.interface_schema_migrations(id) values ('evoluindo-2026-11-08-v1') on conflict do nothing;
+insert into public.interface_schema_migrations(id) values ('evoluindo-2026-11-12-dificuldade') on conflict do nothing;
 create or replace function public.interface_take_limit(p_key text,p_max integer)
 returns boolean language plpgsql security definer set search_path=public as $$
 declare n integer;

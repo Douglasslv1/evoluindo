@@ -1,3 +1,16 @@
+# Atualizar a publicação
+
+## Atualizações que exigem SQL no Supabase
+
+Algumas versões acrescentam tabelas ou colunas. Antes de publicar uma delas na Vercel, abra o SQL Editor do Supabase e execute novamente **database/schema.sql** inteiro. O script pode ser executado mais de uma vez: ele só cria o que falta e não apaga dados. Depois, execute **database/verify-after-schema.sql** e confira que as consultas de tabela e coluna faltando não retornam linhas.
+
+| Versão | O que muda no banco |
+| --- | --- |
+| Aulas por disciplina (novembro de 2026) | Tabelas `interface_lessons` e `interface_class_lessons` |
+| Dificuldade das perguntas (novembro de 2026) | Coluna `difficulty` em `interface_questions`; perguntas existentes ficam como "média" |
+
+Se o código novo for publicado sem o SQL, cadastrar ou importar perguntas falhará até o script ser executado.
+
 # Atualizar para a versão 3 — Conteúdo universal e aulas ampliadas
 
 Esta é uma atualização do mesmo sistema. O curso é comum a todos os grupos de acesso. Os grupos continuam organizando quem pode entrar, quais aulas estão abertas e quais entregas você acompanha.

@@ -12,4 +12,9 @@ test('schema de instalação limpa cria tabelas referenciadas antes das dependen
   assert.ok(students < championships);
   assert.match(sql, /add column if not exists duration_seconds/);
   assert.match(sql, /add column if not exists system_key/);
+  assert.match(sql, /interface_questions add column if not exists difficulty/);
+  assert.match(
+    fs.readFileSync('database/verify-after-schema.sql', 'utf8'),
+    /'interface_questions','difficulty'/
+  );
 });

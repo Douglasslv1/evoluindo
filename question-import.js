@@ -52,7 +52,10 @@
         preview.className = 'import-preview';
         preview.innerHTML = `<strong>${items.length} pergunta${items.length === 1 ? '' : 's'} encontrada${items.length === 1 ? '' : 's'}</strong><ol>${items
           .slice(0, 5)
-          .map(item => `<li>${escapeHtml(item.statement ?? item.question ?? 'Sem enunciado')}</li>`)
+          .map(
+            item =>
+              `<li>${escapeHtml(item.statement ?? item.question ?? 'Sem enunciado')}${item.difficulty || item.dificuldade ? ` <small>(${escapeHtml(item.difficulty ?? item.dificuldade)})</small>` : ''}</li>`
+          )
           .join(
             ''
           )}</ol>${items.length > 5 ? `<small>e mais ${items.length - 5} pergunta${items.length - 5 === 1 ? '' : 's'}...</small>` : ''}`;
@@ -108,7 +111,16 @@
         statement: 'Qual é a resposta correta?',
         options: ['Alternativa A', 'Alternativa B', 'Alternativa C', 'Alternativa D'],
         correct: 1,
-        explanation: 'A alternativa B é a resposta correta.'
+        explanation: 'A alternativa B é a resposta correta.',
+        // Opcional: "fácil", "média" ou "difícil" (também aceita easy, medium e hard). Sem o campo, fica média.
+        difficulty: 'média'
+      },
+      {
+        statement: 'Qual alternativa exige mais atenção?',
+        options: ['Alternativa A', 'Alternativa B', 'Alternativa C'],
+        correct: 2,
+        explanation: 'Exemplo de pergunta difícil.',
+        difficulty: 'difícil'
       }
     ];
     downloadText('modelo-banco-evoluindo.json', JSON.stringify(template, null, 2));

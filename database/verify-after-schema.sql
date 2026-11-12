@@ -22,8 +22,13 @@ select id, applied_at
 from public.interface_schema_migrations
 order by applied_at;
 
-select 'interface_subjects.system_key' as missing_column
+with expected(table_name, column_name) as (values
+  ('interface_subjects','system_key'),
+  ('interface_questions','difficulty')
+)
+select e.table_name || '.' || e.column_name as missing_column
+from expected e
 where not exists (
-  select 1 from information_schema.columns
-  where table_schema='public' and table_name='interface_subjects' and column_name='system_key'
+  select 1 from information_schema.columns c
+  where c.table_schema='public' and c.table_name=e.table_name and c.column_name=e.column_name
 );
