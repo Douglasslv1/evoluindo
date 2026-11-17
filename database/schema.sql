@@ -101,6 +101,10 @@ create table if not exists public.interface_simulations (
   questions jsonb not null,
   created_at timestamptz not null default now()
 );
+-- Tipo do simulado (2026-11-17): prática (XP pela pontuação) ou diagnóstico de nível (XP por participação).
+alter table public.interface_simulations add column if not exists kind text not null default 'practice';
+alter table public.interface_simulations drop constraint if exists interface_simulations_kind_check;
+alter table public.interface_simulations add constraint interface_simulations_kind_check check (kind in ('practice','diagnostic'));
 create table if not exists public.interface_simulation_attempts (
   id uuid primary key,
   simulation_id uuid not null references public.interface_simulations(id) on delete cascade,
@@ -247,6 +251,7 @@ create table if not exists public.interface_schema_migrations (
 );
 insert into public.interface_schema_migrations(id) values ('evoluindo-2026-11-08-v1') on conflict do nothing;
 insert into public.interface_schema_migrations(id) values ('evoluindo-2026-11-12-dificuldade') on conflict do nothing;
+insert into public.interface_schema_migrations(id) values ('evoluindo-2026-11-17-diagnostico') on conflict do nothing;
 create or replace function public.interface_take_limit(p_key text,p_max integer)
 returns boolean language plpgsql security definer set search_path=public as $$
 declare n integer;

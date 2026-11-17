@@ -24,7 +24,8 @@ order by applied_at;
 
 with expected(table_name, column_name) as (values
   ('interface_subjects','system_key'),
-  ('interface_questions','difficulty')
+  ('interface_questions','difficulty'),
+  ('interface_simulations','kind')
 )
 select e.table_name || '.' || e.column_name as missing_column
 from expected e

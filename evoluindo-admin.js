@@ -111,6 +111,9 @@
           }
         })
     );
+    section
+      .querySelectorAll('[data-simulation-report]')
+      .forEach(button => (button.onclick = () => openSimulationReport(button.dataset.simulationReport)));
     section.querySelectorAll('[data-simulation-status]').forEach(
       button =>
         (button.onclick = async () => {
@@ -285,7 +288,7 @@
   function teacherSimulations(assigned) {
     const simulations = (teacher.simulations || []).filter(item => item.class_id === selectedClass),
       availableSubjects = teacher.subjects.filter(subject => assigned.has(subject.id));
-    return `<div class="simulation-manager"><div class="subject-heading"><div><strong>Simulados da turma</strong><p class="muted small">Use uma cópia congelada das perguntas e conceda XP pela pontuação.</p></div><button type="button" class="primary" id="new-simulation" ${availableSubjects.length ? '' : 'disabled'}>+ Criar simulado</button></div><div class="simulation-grid">${simulations.map(item => `<article><span class="simulation-status ${item.status}">${item.status === 'draft' ? 'Rascunho' : item.status === 'open' ? 'Aberto' : 'Encerrado'}</span><h3>${escapeHtml(item.title)}</h3><p>${item.question_count} perguntas · até ${item.max_xp} XP</p><small>${item.attempt_count} conclusão${item.attempt_count === 1 ? '' : 'ões'} · banco rev. ${item.bank_revision}</small>${item.status !== 'closed' ? `<button type="button" class="${item.status === 'draft' ? 'primary' : 'ghost'}" data-simulation-status="${escapeHtml(item.id)}" data-next-status="${item.status === 'draft' ? 'open' : 'closed'}">${item.status === 'draft' ? 'Abrir para a turma' : 'Encerrar simulado'}</button>` : ''}</article>`).join('') || '<div class="empty compact">Nenhum simulado criado para esta turma.</div>'}</div></div>`;
+    return `<div class="simulation-manager"><div class="subject-heading"><div><strong>Simulados da turma</strong><p class="muted small">Use uma cópia congelada das perguntas e conceda XP pela pontuação.</p></div><button type="button" class="primary" id="new-simulation" ${availableSubjects.length ? '' : 'disabled'}>+ Criar simulado</button></div><div class="simulation-grid">${simulations.map(item => `<article><span class="simulation-status ${item.status}">${item.status === 'draft' ? 'Rascunho' : item.status === 'open' ? 'Aberto' : 'Encerrado'}</span>${item.kind === 'diagnostic' ? '<span class="kind-pill">Diagnóstico</span>' : ''}<h3>${escapeHtml(item.title)}</h3><p>${item.question_count} perguntas · ${item.kind === 'diagnostic' ? `${item.max_xp} XP por participação` : `até ${item.max_xp} XP`}</p><small>${item.attempt_count} conclusão${item.attempt_count === 1 ? '' : 'ões'} · banco rev. ${item.bank_revision}</small>${item.status !== 'draft' ? `<button type="button" class="ghost" data-simulation-report="${escapeHtml(item.id)}">${item.kind === 'diagnostic' ? 'Ver níveis da turma' : 'Ver resultado'}</button>` : ''}${item.status !== 'closed' ? `<button type="button" class="${item.status === 'draft' ? 'primary' : 'ghost'}" data-simulation-status="${escapeHtml(item.id)}" data-next-status="${item.status === 'draft' ? 'open' : 'closed'}">${item.status === 'draft' ? 'Abrir para a turma' : 'Encerrar simulado'}</button>` : ''}</article>`).join('') || '<div class="empty compact">Nenhum simulado criado para esta turma.</div>'}</div></div>`;
   }
 
   function openSimulationForm() {
@@ -296,12 +299,43 @@
       ),
       subjects = teacher.subjects.filter(subject => assigned.has(subject.id)),
       banks = (teacher.banks || []).filter(bank => assigned.has(bank.subject_id) && bank.question_count > 0);
+    const levelInputs = Object.entries(difficultyLabels)
+      .map(
+        ([key, label]) =>
+          `<label>${label}<input name="dist-${key}" type="number" min="0" max="50" value="0"><small class="muted" data-available="${key}"></small></label>`
+      )
+      .join('');
     modal(
-      `<div class="eyebrow">NOVO SIMULADO</div><h2>Prática com XP.</h2><p>As perguntas sorteadas ficarão congeladas nesta versão do simulado.</p><form id="simulation-form"><label>Título<input name="title" minlength="3" maxlength="100" required placeholder="Ex.: Revisão da Unidade 1"></label><label>Disciplina<select name="subjectId" id="simulation-subject" required>${subjects.map(subject => `<option value="${escapeHtml(subject.id)}">${escapeHtml(subject.name)}</option>`).join('')}</select></label><label>Banco de perguntas<select name="bankId" id="simulation-bank" required></select></label><div class="form-columns"><label>Quantidade de perguntas<input name="questionCount" type="number" min="1" max="50" required value="${Math.min(10, banks[0]?.question_count || 1)}"></label><label>XP máximo<input name="maxXp" type="number" min="0" max="1000" required value="100"></label></div><p class="muted small">O simulado nasce como rascunho. Confira os dados antes de abri-lo para a turma.</p><p id="simulation-error" class="form-error" role="alert"></p><button type="submit" class="primary">Criar rascunho</button></form>`
+      `<div class="eyebrow">NOVO SIMULADO</div><h2 id="simulation-heading">Prática com XP.</h2><p id="simulation-intro">As perguntas sorteadas ficarão congeladas nesta versão do simulado.</p><form id="simulation-form"><label>Tipo<select name="kind" id="simulation-kind"><option value="practice">Simulado de prática · XP pela pontuação</option><option value="diagnostic">Diagnóstico de nível · XP por participação</option></select></label><label>Título<input name="title" minlength="3" maxlength="100" required placeholder="Ex.: Revisão da Unidade 1"></label><label>Disciplina<select name="subjectId" id="simulation-subject" required>${subjects.map(subject => `<option value="${escapeHtml(subject.id)}">${escapeHtml(subject.name)}</option>`).join('')}</select></label><label>Banco de perguntas<select name="bankId" id="simulation-bank" required></select></label><div class="form-columns"><label>Quantidade de perguntas<input name="questionCount" type="number" min="1" max="50" required value="${Math.min(10, banks[0]?.question_count || 1)}"></label><label><span id="simulation-xp-label">XP máximo</span><input name="maxXp" type="number" min="0" max="1000" required value="100"></label></div><fieldset class="distribution"><legend>Perguntas por dificuldade</legend><label class="inline"><input type="radio" name="distributionMode" value="auto" checked> Equilibrar automaticamente</label><label class="inline"><input type="radio" name="distributionMode" value="custom"> Escolher quantas de cada nível</label><div class="form-columns distribution-levels" hidden>${levelInputs}</div><p class="muted small" id="distribution-sum"></p></fieldset><p class="muted small">O simulado nasce como rascunho. Confira os dados antes de abri-lo para a turma.</p><p id="simulation-error" class="form-error" role="alert"></p><button type="submit" class="primary">Criar rascunho</button></form>`
     );
-    const subjectSelect = document.getElementById('simulation-subject'),
+    const form = document.getElementById('simulation-form'),
+      subjectSelect = document.getElementById('simulation-subject'),
       bankSelect = document.getElementById('simulation-bank'),
-      countInput = document.querySelector('#simulation-form [name=questionCount]');
+      kindSelect = document.getElementById('simulation-kind'),
+      countInput = form.elements.questionCount,
+      levels = form.querySelector('.distribution-levels'),
+      sumText = document.getElementById('distribution-sum'),
+      selectedBank = () => banks.find(bank => bank.id === bankSelect.value),
+      custom = () => form.elements.distributionMode.value === 'custom';
+    // Diagnóstico: textos e sugestões próprios (20 perguntas, XP fixo de participação).
+    const updateKind = () => {
+      const diagnostic = kindSelect.value === 'diagnostic';
+      document.getElementById('simulation-heading').textContent = diagnostic
+        ? 'Diagnóstico de nível.'
+        : 'Prática com XP.';
+      document.getElementById('simulation-intro').textContent = diagnostic
+        ? 'Use no início da disciplina para conhecer o ponto de partida de cada aluno. Todos respondem às mesmas perguntas; o aluno não vê o gabarito e recebe o XP só por participar. Você verá o nível de cada um (Iniciante, Intermediário ou Avançado).'
+        : 'As perguntas sorteadas ficarão congeladas nesta versão do simulado.';
+      document.getElementById('simulation-xp-label').textContent = diagnostic
+        ? 'XP por participação'
+        : 'XP máximo';
+      if (diagnostic) {
+        if (!form.elements.title.value) form.elements.title.value = 'Diagnóstico inicial';
+        countInput.value = Math.min(20, Number(countInput.max) || 20);
+        form.elements.maxXp.value = 50;
+      }
+      updateSum();
+    };
     const updateBanks = () => {
       const filtered = banks.filter(bank => bank.subject_id === subjectSelect.value);
       bankSelect.innerHTML = filtered
@@ -314,32 +348,178 @@
       updateCount();
     };
     const updateCount = () => {
-      const count = Number(bankSelect.selectedOptions[0]?.dataset.count || 0);
+      const count = Number(bankSelect.selectedOptions[0]?.dataset.count || 0),
+        counts = selectedBank()?.difficulty_counts || { easy: 0, medium: count, hard: 0 };
       countInput.max = count || 1;
       countInput.value = Math.min(Number(countInput.value) || 10, count || 1);
+      for (const [key, available] of Object.entries(counts)) {
+        form.elements['dist-' + key].max = available;
+        form.querySelector(`[data-available="${key}"]`).textContent = `${available} no banco`;
+      }
+      updateSum();
     };
+    // Mostra a soma da distribuição em tempo real; ao ativar, sugere uma divisão em partes iguais.
+    const updateSum = () => {
+      levels.hidden = !custom();
+      if (!custom()) {
+        sumText.textContent =
+          'Fácil, média e difícil se alternam e as perguntas vão da mais fácil à mais difícil.';
+        return;
+      }
+      const sum = ['easy', 'medium', 'hard'].reduce(
+        (total, key) => total + (Number(form.elements['dist-' + key].value) || 0),
+        0
+      );
+      sumText.textContent = `Soma: ${sum} de ${countInput.value} perguntas${sum === Number(countInput.value) ? ' ✓' : ''}.`;
+    };
+    const suggestSplit = () => {
+      const total = Number(countInput.value) || 0,
+        counts = selectedBank()?.difficulty_counts || { easy: 0, medium: total, hard: 0 },
+        split = { easy: 0, medium: 0, hard: 0 };
+      // Distribui uma a uma entre os níveis que ainda têm perguntas, como o sorteio automático.
+      for (let placed = 0; placed < total; ) {
+        let progressed = false;
+        for (const key of ['easy', 'medium', 'hard'])
+          if (placed < total && split[key] < counts[key]) {
+            split[key]++;
+            placed++;
+            progressed = true;
+          }
+        if (!progressed) break;
+      }
+      for (const key of Object.keys(split)) form.elements['dist-' + key].value = split[key];
+    };
+    form.oninput = updateSum;
+    form.querySelectorAll('[name=distributionMode]').forEach(
+      radio =>
+        (radio.onchange = () => {
+          if (custom()) suggestSplit();
+          updateSum();
+        })
+    );
+    kindSelect.onchange = updateKind;
     subjectSelect.onchange = updateBanks;
     bankSelect.onchange = updateCount;
     updateBanks();
-    document.getElementById('simulation-form').onsubmit = async event => {
+    form.onsubmit = async event => {
       event.preventDefault();
       event.submitter.disabled = true;
       const values = Object.fromEntries(new FormData(event.currentTarget));
       try {
         await api('create-simulation', {
           classId: selectedClass,
-          ...values,
+          kind: values.kind,
+          title: values.title,
+          subjectId: values.subjectId,
+          bankId: values.bankId,
           questionCount: Number(values.questionCount),
-          maxXp: Number(values.maxXp)
+          maxXp: Number(values.maxXp),
+          distribution: custom()
+            ? {
+                easy: Number(values['dist-easy']),
+                medium: Number(values['dist-medium']),
+                hard: Number(values['dist-hard'])
+              }
+            : undefined
         });
         document.getElementById('modal').close();
         await teacherHome();
-        toast('Simulado criado como rascunho.');
+        toast(
+          values.kind === 'diagnostic'
+            ? 'Diagnóstico criado como rascunho.'
+            : 'Simulado criado como rascunho.'
+        );
       } catch (error) {
         document.getElementById('simulation-error').textContent = error.message;
         event.submitter.disabled = false;
       }
     };
+  }
+
+  // Resultado de um simulado. No diagnóstico, mostra o nível de cada aluno para planejar as próximas aulas.
+  async function openSimulationReport(id) {
+    try {
+      const report = await api('simulation-report', { id }),
+        diagnostic = report.simulation.kind === 'diagnostic',
+        done = report.students.filter(row => row.status === 'completed'),
+        waiting = report.students.filter(row => row.status !== 'completed'),
+        cell = (row, key) => {
+          const value = row.by_level?.[key];
+          return value?.total ? `${value.correct}/${value.total}` : '—';
+        },
+        ordered = done.slice().sort((a, b) => b.percent - a.percent || a.name.localeCompare(b.name, 'pt-BR')),
+        levelBars = report.levels
+          .map(
+            level =>
+              `<div class="level-${level.key}"><small>${level.label}</small><b>${level.count}</b><span style="--share:${done.length ? Math.round((level.count / done.length) * 100) : 0}%"></span></div>`
+          )
+          .join('');
+      modal(
+        `<div class="eyebrow">${diagnostic ? 'DIAGNÓSTICO DE NÍVEL' : 'RESULTADO DO SIMULADO'} / ${report.simulation.question_count} PERGUNTAS</div><h2>${escapeHtml(report.simulation.title)}</h2><p>${done.length} de ${report.students.length} aluno${report.students.length === 1 ? '' : 's'} responderam. Perguntas: ${report.question_mix.easy} fáceis, ${report.question_mix.medium} médias e ${report.question_mix.hard} difíceis.</p>${diagnostic ? `<div class="level-summary">${levelBars}</div><p class="muted small">Nível pelo aproveitamento ponderado: acerto em fácil vale 1, em média 2 e em difícil 3. Iniciante abaixo de 40%, Intermediário de 40% a 74% e Avançado a partir de 75%.</p>` : ''}<div class="table-scroll"><table class="report-table"><thead><tr><th>Aluno</th><th>Fáceis</th><th>Médias</th><th>Difíceis</th><th>Acertos</th>${diagnostic ? '<th>Aproveitamento</th><th>Nível</th>' : ''}</tr></thead><tbody>${ordered.map(row => `<tr><td><b>${escapeHtml(row.name)}</b></td><td>${cell(row, 'easy')}</td><td>${cell(row, 'medium')}</td><td>${cell(row, 'hard')}</td><td>${row.score}/${row.total}</td>${diagnostic ? `<td>${row.percent}%</td><td><span class="level-pill level-${row.level}">${escapeHtml(row.level_label)}</span></td>` : ''}</tr>`).join('') || `<tr><td colspan="${diagnostic ? 7 : 5}" class="muted">Ninguém concluiu ainda.</td></tr>`}</tbody></table></div>${waiting.length ? `<p class="muted small"><b>Ainda não responderam (${waiting.length}):</b> ${waiting.map(row => escapeHtml(row.name) + (row.status === 'started' ? ' (começou)' : '')).join(', ')}</p>` : ''}${
+          done.length
+            ? `<h3>Perguntas com mais erros</h3><ol class="error-ranking">${
+                report.questions
+                  .filter(question => question.wrong)
+                  .slice(0, 8)
+                  .map(
+                    question =>
+                      `<li><span class="difficulty-pill ${question.difficulty}">${difficultyLabels[question.difficulty]}</span> ${escapeHtml(question.statement)} <small>${question.wrong} de ${question.answered} erraram (${question.error_rate}%)</small></li>`
+                  )
+                  .join('') || '<li class="muted">Nenhuma pergunta teve erro.</li>'
+              }</ol>`
+            : ''
+        }<div class="button-row"><button type="button" class="primary" id="simulation-report-csv" ${done.length ? '' : 'disabled'}>Baixar CSV ↓</button><button type="button" class="ghost" id="simulation-report-close">Fechar</button></div>`
+      );
+      document.getElementById('simulation-report-close').onclick = () =>
+        document.getElementById('modal').close();
+      document.getElementById('simulation-report-csv').onclick = () => {
+        const csv = value =>
+            '"' +
+            String(value ?? '')
+              .replace(/^[=+@-]/, "'$&")
+              .replace(/"/g, '""') +
+            '"',
+          header = [
+            'Aluno',
+            'Código pessoal',
+            'Situação',
+            'Fáceis',
+            'Médias',
+            'Difíceis',
+            'Acertos',
+            'Aproveitamento (%)',
+            'Nível'
+          ],
+          // "3 de 7" em vez de "3/7": o Excel transformaria a barra em data.
+          ratio = (row, key) => {
+            const value = row.by_level?.[key];
+            return value?.total ? `${value.correct} de ${value.total}` : '';
+          },
+          lines = report.students.map(row => [
+            row.name,
+            row.access_code,
+            row.status === 'completed' ? 'Concluído' : row.status === 'started' ? 'Começou' : 'Não respondeu',
+            ratio(row, 'easy'),
+            ratio(row, 'medium'),
+            ratio(row, 'hard'),
+            row.status === 'completed' ? `${row.score} de ${row.total}` : '',
+            row.status === 'completed' ? row.percent : '',
+            diagnostic ? row.level_label || '' : ''
+          ]),
+          slug = report.simulation.title
+            .normalize('NFD')
+            .replace(/\p{Diacritic}/gu, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '');
+        downloadText(
+          `${slug || 'simulado'}-resultado.csv`,
+          '﻿' + [header, ...lines].map(line => line.map(csv).join(';')).join('\r\n')
+        );
+      };
+    } catch (error) {
+      toast(error.message);
+    }
   }
 
   function teacherChampionships(assigned) {
@@ -586,7 +766,8 @@
       .map(item => {
         const attempt = attempts.find(value => value.simulation_id === item.id),
           done = attempt?.status === 'completed';
-        return `<article><span class="simulation-status ${item.status}">${done ? 'Concluído' : item.status === 'open' ? 'Disponível' : 'Encerrado'}</span><h3>${escapeHtml(item.title)}</h3><p>${item.question_count} perguntas · até ${item.max_xp} XP</p>${done ? `<strong>${attempt.score} / ${item.question_count} · +${attempt.xp} XP</strong>` : item.status === 'open' ? `<button type="button" class="primary" data-start-simulation="${escapeHtml(item.id)}">Começar</button>` : '<small>Este simulado foi encerrado.</small>'}</article>`;
+        const diagnostic = item.kind === 'diagnostic';
+        return `<article><span class="simulation-status ${item.status}">${done ? 'Concluído' : item.status === 'open' ? 'Disponível' : 'Encerrado'}</span>${diagnostic ? '<span class="kind-pill">Diagnóstico</span>' : ''}<h3>${escapeHtml(item.title)}</h3><p>${item.question_count} perguntas · ${diagnostic ? `+${item.max_xp} XP por participar` : `até ${item.max_xp} XP`}</p>${done ? `<strong>${diagnostic ? 'Respondido' : `${attempt.score} / ${item.question_count}`} · +${attempt.xp} XP</strong>` : item.status === 'open' ? `<button type="button" class="primary" data-start-simulation="${escapeHtml(item.id)}">Começar</button>` : '<small>Este simulado foi encerrado.</small>'}</article>`;
       })
       .join('')}</div>`;
     lessonGrid.parentElement.insertBefore(section, lessonGrid);
@@ -599,7 +780,7 @@
     try {
       const data = await api('simulation-start', { id });
       modal(
-        `<div class="eyebrow">SIMULADO / ${data.questions.length} PERGUNTAS</div><h2>${escapeHtml(data.simulation.title)}</h2><form id="student-simulation-form"><div class="simulation-questions">${data.questions.map((question, index) => `<fieldset><legend><span>${String(index + 1).padStart(2, '0')}</span>${escapeHtml(question.statement)}</legend>${question.options.map((option, optionIndex) => `<label><input type="radio" name="answer${index}" value="${optionIndex}" required><span>${String.fromCharCode(65 + optionIndex)}</span>${escapeHtml(option)}</label>`).join('')}</fieldset>`).join('')}</div><p id="student-simulation-error" class="form-error" role="alert"></p><button type="submit" class="primary full">Concluir simulado</button></form>`
+        `<div class="eyebrow">${data.simulation.kind === 'diagnostic' ? 'DIAGNÓSTICO' : 'SIMULADO'} / ${data.questions.length} PERGUNTAS</div><h2>${escapeHtml(data.simulation.title)}</h2>${data.simulation.kind === 'diagnostic' ? `<div class="callout"><b>Não vale nota.</b> Este questionário serve para o professor conhecer o seu ponto de partida e ajustar as aulas. Responda sozinho e sem consultar: se não souber, marque a alternativa que achar mais provável. Você recebe ${data.simulation.max_xp} XP por participar, independentemente dos acertos.</div>` : ''}<form id="student-simulation-form"><div class="simulation-questions">${data.questions.map((question, index) => `<fieldset><legend><span>${String(index + 1).padStart(2, '0')}</span>${escapeHtml(question.statement)}</legend>${question.options.map((option, optionIndex) => `<label><input type="radio" name="answer${index}" value="${optionIndex}" required><span>${String.fromCharCode(65 + optionIndex)}</span>${escapeHtml(option)}</label>`).join('')}</fieldset>`).join('')}</div><p id="student-simulation-error" class="form-error" role="alert"></p><button type="submit" class="primary full">Concluir simulado</button></form>`
       );
       document.getElementById('student-simulation-form').onsubmit = async event => {
         event.preventDefault();
@@ -623,6 +804,19 @@
   }
 
   function showSimulationResult(result) {
+    if (result.kind === 'diagnostic') {
+      // Sem gabarito no diagnóstico: o aluno vê só os acertos por dificuldade.
+      const line = (key, label) => {
+        const value = result.byLevel?.[key];
+        return value?.total ? `<li><b>${label}:</b> ${value.correct} de ${value.total}</li>` : '';
+      };
+      modal(
+        `<div class="eyebrow">DIAGNÓSTICO CONCLUÍDO</div><h2>Obrigado! Seu ponto de partida foi registrado.</h2><div class="simulation-xp">+${result.xp}<small>XP</small></div><p>Você acertou ${result.score} de ${result.total} perguntas:</p><ul class="diagnostic-summary">${line('easy', 'Fáceis')}${line('medium', 'Médias')}${line('hard', 'Difíceis')}</ul><p class="muted">O professor vai usar este resultado para ajustar o ritmo das aulas. As respostas corretas não são mostradas agora para que os colegas respondam sem influência.</p><button type="button" class="primary full" id="finish-simulation-result">Voltar para minha jornada</button>`
+      );
+      document.getElementById('finish-simulation-result').onclick = () =>
+        document.getElementById('modal').close();
+      return;
+    }
     modal(
       `<div class="eyebrow">SIMULADO CONCLUÍDO</div><h2>${result.score} de ${result.total} respostas corretas</h2><div class="simulation-xp">+${result.xp}<small>XP</small></div><div class="simulation-review">${result.review.map((item, index) => `<details class="${item.answer === item.correct ? 'correct' : 'incorrect'}"><summary>${index + 1}. ${escapeHtml(item.statement)}</summary><p>Sua resposta: <b>${escapeHtml(item.options[item.answer])}</b></p><p>Resposta correta: <b>${escapeHtml(item.options[item.correct])}</b></p>${item.explanation ? `<p>${escapeHtml(item.explanation)}</p>` : ''}</details>`).join('')}</div><button type="button" class="primary full" id="finish-simulation-result">Voltar para minha jornada</button>`
     );
