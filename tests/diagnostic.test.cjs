@@ -105,11 +105,25 @@ test('diagnóstico de 20 perguntas em banco de 50 classifica a turma sem revelar
     // Responde certo só nos níveis indicados; nos demais, marca uma alternativa errada.
     const answer = async (student, rightLevels) => {
       const start = await service.execute('simulation-start', { id: simulation.id }, student);
-      assert.equal(start.questions[0].correct, undefined);
-      const answers = stored.questions.map(question =>
-        rightLevels.includes(question.difficulty) ? question.correct : (question.correct + 1) % 4
-      );
-      return service.execute('simulation-submit', { id: simulation.id, answers }, student);
+      assert.equal(start.question.index, 0);
+      assert.equal(start.question.correct, undefined);
+      assert.equal(start.questions, undefined, 'Só a pergunta atual é enviada.');
+      // Uma pergunta por vez; no diagnóstico a resposta é só registrada, sem revelar a correta.
+      let response;
+      for (const [index, question] of stored.questions.entries()) {
+        response = await service.execute(
+          'simulation-answer',
+          {
+            id: simulation.id,
+            index,
+            answer: rightLevels.includes(question.difficulty) ? question.correct : (question.correct + 1) % 4
+          },
+          student
+        );
+        assert.equal(response.feedback.correct, undefined);
+        assert.equal(response.feedback.is_correct, undefined);
+      }
+      return response;
     };
     const anaResult = await answer(ana, ['easy', 'medium', 'hard']),
       brunoResult = await answer(bruno, ['easy']),

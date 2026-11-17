@@ -29,7 +29,10 @@ test('publica a gestão visual de disciplinas para professor e aluno', () => {
   matchCode(source, /bank-questions/);
   matchCode(source, /create-simulation/);
   matchCode(source, /simulation-start/);
-  matchCode(source, /simulation-submit/);
+  // Questionário uma pergunta por vez, com temporizador opcional.
+  matchCode(source, /simulation-answer/);
+  matchCode(source, /questionSeconds/);
+  matchCode(source, /remaining_ms/);
   matchCode(source, /create-championship/);
   matchCode(source, /championship-join/);
   matchCode(source, /duel-start/);

@@ -8,7 +8,7 @@ Algumas versões acrescentam tabelas ou colunas. Antes de publicar uma delas na 
 | --- | --- |
 | Aulas por disciplina (novembro de 2026) | Tabelas `interface_lessons` e `interface_class_lessons` |
 | Dificuldade das perguntas (novembro de 2026) | Coluna `difficulty` em `interface_questions`; perguntas existentes ficam como "média" |
-| Diagnóstico de nível (novembro de 2026) | Coluna `kind` em `interface_simulations`; simulados existentes ficam como "prática" |
+| Diagnóstico de nível e questionário uma pergunta por vez (novembro de 2026) | Colunas `kind` e `question_seconds` em `interface_simulations` e `current_started_at` em `interface_simulation_attempts`; simulados existentes ficam como "prática", sem temporizador |
 
 Se o código novo for publicado sem o SQL, as operações que gravam nas colunas novas falham até o script ser executado (cadastrar ou importar perguntas; criar simulados ou diagnósticos). Os dados existentes não são afetados.
 

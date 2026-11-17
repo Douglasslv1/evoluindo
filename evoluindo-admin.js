@@ -7,6 +7,9 @@
   let rendering = false;
   // Dificuldade das perguntas: rótulos e resumo por banco (contagens vêm do servidor em difficulty_counts).
   const difficultyLabels = { easy: 'Fácil', medium: 'Média', hard: 'Difícil' };
+  // 90 → "1:30"
+  const clockText = seconds =>
+    `${Math.floor(seconds / 60)}:${String(Math.max(0, seconds) % 60).padStart(2, '0')}`;
   const difficultyMix = bank => {
     const counts = bank.difficulty_counts || { easy: 0, medium: bank.question_count || 0, hard: 0 };
     return `${counts.easy} ${counts.easy === 1 ? 'fácil' : 'fáceis'} · ${counts.medium} ${counts.medium === 1 ? 'média' : 'médias'} · ${counts.hard} ${counts.hard === 1 ? 'difícil' : 'difíceis'}`;
@@ -288,7 +291,7 @@
   function teacherSimulations(assigned) {
     const simulations = (teacher.simulations || []).filter(item => item.class_id === selectedClass),
       availableSubjects = teacher.subjects.filter(subject => assigned.has(subject.id));
-    return `<div class="simulation-manager"><div class="subject-heading"><div><strong>Simulados da turma</strong><p class="muted small">Use uma cópia congelada das perguntas e conceda XP pela pontuação.</p></div><button type="button" class="primary" id="new-simulation" ${availableSubjects.length ? '' : 'disabled'}>+ Criar simulado</button></div><div class="simulation-grid">${simulations.map(item => `<article><span class="simulation-status ${item.status}">${item.status === 'draft' ? 'Rascunho' : item.status === 'open' ? 'Aberto' : 'Encerrado'}</span>${item.kind === 'diagnostic' ? '<span class="kind-pill">Diagnóstico</span>' : ''}<h3>${escapeHtml(item.title)}</h3><p>${item.question_count} perguntas · ${item.kind === 'diagnostic' ? `${item.max_xp} XP por participação` : `até ${item.max_xp} XP`}</p><small>${item.attempt_count} conclusão${item.attempt_count === 1 ? '' : 'ões'} · banco rev. ${item.bank_revision}</small>${item.status !== 'draft' ? `<button type="button" class="ghost" data-simulation-report="${escapeHtml(item.id)}">${item.kind === 'diagnostic' ? 'Ver níveis da turma' : 'Ver resultado'}</button>` : ''}${item.status !== 'closed' ? `<button type="button" class="${item.status === 'draft' ? 'primary' : 'ghost'}" data-simulation-status="${escapeHtml(item.id)}" data-next-status="${item.status === 'draft' ? 'open' : 'closed'}">${item.status === 'draft' ? 'Abrir para a turma' : 'Encerrar simulado'}</button>` : ''}</article>`).join('') || '<div class="empty compact">Nenhum simulado criado para esta turma.</div>'}</div></div>`;
+    return `<div class="simulation-manager"><div class="subject-heading"><div><strong>Simulados da turma</strong><p class="muted small">Use uma cópia congelada das perguntas e conceda XP pela pontuação.</p></div><button type="button" class="primary" id="new-simulation" ${availableSubjects.length ? '' : 'disabled'}>+ Criar simulado</button></div><div class="simulation-grid">${simulations.map(item => `<article><span class="simulation-status ${item.status}">${item.status === 'draft' ? 'Rascunho' : item.status === 'open' ? 'Aberto' : 'Encerrado'}</span>${item.kind === 'diagnostic' ? '<span class="kind-pill">Diagnóstico</span>' : ''}<h3>${escapeHtml(item.title)}</h3><p>${item.question_count} perguntas · ${item.kind === 'diagnostic' ? `${item.max_xp} XP por participação` : `até ${item.max_xp} XP`}${item.question_seconds ? ` · ⏱ ${clockText(item.question_seconds)} por pergunta` : ''}</p><small>${item.attempt_count} conclusão${item.attempt_count === 1 ? '' : 'ões'} · banco rev. ${item.bank_revision}</small>${item.status !== 'draft' ? `<button type="button" class="ghost" data-simulation-report="${escapeHtml(item.id)}">${item.kind === 'diagnostic' ? 'Ver níveis da turma' : 'Ver resultado'}</button>` : ''}${item.status !== 'closed' ? `<button type="button" class="${item.status === 'draft' ? 'primary' : 'ghost'}" data-simulation-status="${escapeHtml(item.id)}" data-next-status="${item.status === 'draft' ? 'open' : 'closed'}">${item.status === 'draft' ? 'Abrir para a turma' : 'Encerrar simulado'}</button>` : ''}</article>`).join('') || '<div class="empty compact">Nenhum simulado criado para esta turma.</div>'}</div></div>`;
   }
 
   function openSimulationForm() {
@@ -306,7 +309,7 @@
       )
       .join('');
     modal(
-      `<div class="eyebrow">NOVO SIMULADO</div><h2 id="simulation-heading">Prática com XP.</h2><p id="simulation-intro">As perguntas sorteadas ficarão congeladas nesta versão do simulado.</p><form id="simulation-form"><label>Tipo<select name="kind" id="simulation-kind"><option value="practice">Simulado de prática · XP pela pontuação</option><option value="diagnostic">Diagnóstico de nível · XP por participação</option></select></label><label>Título<input name="title" minlength="3" maxlength="100" required placeholder="Ex.: Revisão da Unidade 1"></label><label>Disciplina<select name="subjectId" id="simulation-subject" required>${subjects.map(subject => `<option value="${escapeHtml(subject.id)}">${escapeHtml(subject.name)}</option>`).join('')}</select></label><label>Banco de perguntas<select name="bankId" id="simulation-bank" required></select></label><div class="form-columns"><label>Quantidade de perguntas<input name="questionCount" type="number" min="1" max="50" required value="${Math.min(10, banks[0]?.question_count || 1)}"></label><label><span id="simulation-xp-label">XP máximo</span><input name="maxXp" type="number" min="0" max="1000" required value="100"></label></div><fieldset class="distribution"><legend>Perguntas por dificuldade</legend><label class="inline"><input type="radio" name="distributionMode" value="auto" checked> Equilibrar automaticamente</label><label class="inline"><input type="radio" name="distributionMode" value="custom"> Escolher quantas de cada nível</label><div class="form-columns distribution-levels" hidden>${levelInputs}</div><p class="muted small" id="distribution-sum"></p></fieldset><p class="muted small">O simulado nasce como rascunho. Confira os dados antes de abri-lo para a turma.</p><p id="simulation-error" class="form-error" role="alert"></p><button type="submit" class="primary">Criar rascunho</button></form>`
+      `<div class="eyebrow">NOVO SIMULADO</div><h2 id="simulation-heading">Prática com XP.</h2><p id="simulation-intro">As perguntas sorteadas ficarão congeladas nesta versão do simulado.</p><form id="simulation-form"><label>Tipo<select name="kind" id="simulation-kind"><option value="practice">Simulado de prática · XP pela pontuação</option><option value="diagnostic">Diagnóstico de nível · XP por participação</option></select></label><label>Título<input name="title" minlength="3" maxlength="100" required placeholder="Ex.: Revisão da Unidade 1"></label><label>Disciplina<select name="subjectId" id="simulation-subject" required>${subjects.map(subject => `<option value="${escapeHtml(subject.id)}">${escapeHtml(subject.name)}</option>`).join('')}</select></label><label>Banco de perguntas<select name="bankId" id="simulation-bank" required></select></label><div class="form-columns"><label>Quantidade de perguntas<input name="questionCount" type="number" min="1" max="50" required value="${Math.min(10, banks[0]?.question_count || 1)}"></label><label><span id="simulation-xp-label">XP máximo</span><input name="maxXp" type="number" min="0" max="1000" required value="100"></label></div><fieldset class="distribution"><legend>Perguntas por dificuldade</legend><label class="inline"><input type="radio" name="distributionMode" value="auto" checked> Equilibrar automaticamente</label><label class="inline"><input type="radio" name="distributionMode" value="custom"> Escolher quantas de cada nível</label><div class="form-columns distribution-levels" hidden>${levelInputs}</div><p class="muted small" id="distribution-sum"></p></fieldset><fieldset class="distribution"><legend>Temporizador</legend><label class="inline"><input type="checkbox" name="useTimer" id="simulation-timer"> Adicionar temporizador em cada pergunta</label><div class="timer-settings" hidden><label>Tempo por pergunta (segundos)<input name="questionSeconds" type="number" min="10" max="600" step="5" value="90"></label><p class="muted small" id="timer-preview"></p></div></fieldset><p class="muted small">O simulado nasce como rascunho. Confira os dados antes de abri-lo para a turma.</p><p id="simulation-error" class="form-error" role="alert"></p><button type="submit" class="primary">Criar rascunho</button></form>`
     );
     const form = document.getElementById('simulation-form'),
       subjectSelect = document.getElementById('simulation-subject'),
@@ -389,7 +392,23 @@
       }
       for (const key of Object.keys(split)) form.elements['dist-' + key].value = split[key];
     };
-    form.oninput = updateSum;
+    // Temporizador: mostra o tempo em minutos (90 s → 1:30) e o total aproximado do questionário.
+    const timerToggle = document.getElementById('simulation-timer'),
+      updateTimer = () => {
+        form.querySelector('.timer-settings').hidden = !timerToggle.checked;
+        const seconds = Number(form.elements.questionSeconds.value) || 0,
+          total = seconds * (Number(countInput.value) || 0);
+        document.getElementById('timer-preview').textContent =
+          seconds >= 10
+            ? `${clockText(seconds)} por pergunta · até ${Math.ceil(total / 60)} minutos no total. Se o tempo acabar, a pergunta conta como errada e o aluno segue para a próxima.`
+            : 'Use pelo menos 10 segundos.';
+      };
+    form.oninput = () => {
+      updateSum();
+      updateTimer();
+    };
+    timerToggle.onchange = updateTimer;
+    updateTimer();
     form.querySelectorAll('[name=distributionMode]').forEach(
       radio =>
         (radio.onchange = () => {
@@ -414,6 +433,7 @@
           bankId: values.bankId,
           questionCount: Number(values.questionCount),
           maxXp: Number(values.maxXp),
+          questionSeconds: timerToggle.checked ? Number(values.questionSeconds) : null,
           distribution: custom()
             ? {
                 easy: Number(values['dist-easy']),
@@ -767,7 +787,7 @@
         const attempt = attempts.find(value => value.simulation_id === item.id),
           done = attempt?.status === 'completed';
         const diagnostic = item.kind === 'diagnostic';
-        return `<article><span class="simulation-status ${item.status}">${done ? 'Concluído' : item.status === 'open' ? 'Disponível' : 'Encerrado'}</span>${diagnostic ? '<span class="kind-pill">Diagnóstico</span>' : ''}<h3>${escapeHtml(item.title)}</h3><p>${item.question_count} perguntas · ${diagnostic ? `+${item.max_xp} XP por participar` : `até ${item.max_xp} XP`}</p>${done ? `<strong>${diagnostic ? 'Respondido' : `${attempt.score} / ${item.question_count}`} · +${attempt.xp} XP</strong>` : item.status === 'open' ? `<button type="button" class="primary" data-start-simulation="${escapeHtml(item.id)}">Começar</button>` : '<small>Este simulado foi encerrado.</small>'}</article>`;
+        return `<article><span class="simulation-status ${item.status}">${done ? 'Concluído' : item.status === 'open' ? 'Disponível' : 'Encerrado'}</span>${diagnostic ? '<span class="kind-pill">Diagnóstico</span>' : ''}<h3>${escapeHtml(item.title)}</h3><p>${item.question_count} perguntas · ${diagnostic ? `+${item.max_xp} XP por participar` : `até ${item.max_xp} XP`}${item.question_seconds ? ` · ⏱ ${clockText(item.question_seconds)} por pergunta` : ''}</p>${done ? `<strong>${diagnostic ? 'Respondido' : `${attempt.score} / ${item.question_count}`} · +${attempt.xp} XP</strong>` : item.status === 'open' ? `<button type="button" class="primary" data-start-simulation="${escapeHtml(item.id)}">${attempt ? 'Continuar' : 'Começar'}</button>` : '<small>Este simulado foi encerrado.</small>'}</article>`;
       })
       .join('')}</div>`;
     lessonGrid.parentElement.insertBefore(section, lessonGrid);
@@ -776,31 +796,144 @@
       .forEach(button => (button.onclick = () => startSimulation(button.dataset.startSimulation)));
   }
 
-  async function startSimulation(id) {
+  // Questionário uma pergunta por vez: responde, vê a correção (na prática) e segue para a próxima.
+  // O servidor só envia a pergunta atual e grava cada resposta antes de revelar a correta.
+  let questionTimer = null;
+  function stopQuestionTimer() {
+    if (questionTimer) clearInterval(questionTimer);
+    questionTimer = null;
+  }
+
+  function startSimulation(id) {
+    const info = (state.simulations || []).find(item => item.id === id),
+      resumed = (state.simulationAttempts || []).some(item => item.simulation_id === id);
+    if (!info || resumed) return loadQuestion(id);
+    const diagnostic = info.kind === 'diagnostic';
+    // Tela de abertura antes do primeiro relógio começar.
+    modal(
+      `<div class="eyebrow">${diagnostic ? 'DIAGNÓSTICO' : 'SIMULADO'} / ${info.question_count} PERGUNTAS</div><h2>${escapeHtml(info.title)}</h2>${diagnostic ? `<div class="callout"><b>Não vale nota.</b> Este questionário serve para o professor conhecer o seu ponto de partida e ajustar as aulas. Responda sozinho e sem consultar: se não souber, marque a alternativa que achar mais provável. Você recebe ${info.max_xp} XP por participar, independentemente dos acertos.</div>` : ''}<ul class="quiz-rules"><li>Uma pergunta por vez. Depois de confirmar, a resposta não pode ser alterada.</li>${diagnostic ? '<li>As respostas corretas não são mostradas durante o diagnóstico.</li>' : '<li>Depois de cada resposta você vê se acertou e qual é a correta.</li>'}${info.question_seconds ? `<li>⏱ Você terá <b>${clockText(info.question_seconds)}</b> para cada pergunta. Se o tempo acabar, ela conta como errada e você segue para a próxima.</li>` : ''}<li>Se fechar a janela, você continua de onde parou${info.question_seconds ? ', mas o tempo da pergunta continua correndo' : ''}.</li></ul><button type="button" class="primary full" id="quiz-begin">Começar</button>`
+    );
+    document.getElementById('quiz-begin').onclick = () => loadQuestion(id);
+  }
+
+  async function loadQuestion(id) {
     try {
       const data = await api('simulation-start', { id });
-      modal(
-        `<div class="eyebrow">${data.simulation.kind === 'diagnostic' ? 'DIAGNÓSTICO' : 'SIMULADO'} / ${data.questions.length} PERGUNTAS</div><h2>${escapeHtml(data.simulation.title)}</h2>${data.simulation.kind === 'diagnostic' ? `<div class="callout"><b>Não vale nota.</b> Este questionário serve para o professor conhecer o seu ponto de partida e ajustar as aulas. Responda sozinho e sem consultar: se não souber, marque a alternativa que achar mais provável. Você recebe ${data.simulation.max_xp} XP por participar, independentemente dos acertos.</div>` : ''}<form id="student-simulation-form"><div class="simulation-questions">${data.questions.map((question, index) => `<fieldset><legend><span>${String(index + 1).padStart(2, '0')}</span>${escapeHtml(question.statement)}</legend>${question.options.map((option, optionIndex) => `<label><input type="radio" name="answer${index}" value="${optionIndex}" required><span>${String.fromCharCode(65 + optionIndex)}</span>${escapeHtml(option)}</label>`).join('')}</fieldset>`).join('')}</div><p id="student-simulation-error" class="form-error" role="alert"></p><button type="submit" class="primary full">Concluir simulado</button></form>`
-      );
-      document.getElementById('student-simulation-form').onsubmit = async event => {
-        event.preventDefault();
-        event.submitter.disabled = true;
-        const form = new FormData(event.currentTarget),
-          answers = data.questions.map((_, index) => Number(form.get('answer' + index)));
-        try {
-          const response = await api('simulation-submit', { id, answers });
-          state = response.state;
-          updateSidebar();
-          map();
-          showSimulationResult(response.result);
-        } catch (error) {
-          document.getElementById('student-simulation-error').textContent = error.message;
-          event.submitter.disabled = false;
-        }
-      };
+      if (!data.question) return toast('Não há mais perguntas neste simulado.');
+      renderQuestion(id, data.simulation, data.question);
     } catch (error) {
       toast(error.message);
     }
+  }
+
+  function renderQuestion(id, simulation, question) {
+    stopQuestionTimer();
+    const diagnostic = simulation.kind === 'diagnostic',
+      progress = Math.round((question.index / question.total) * 100);
+    modal(
+      `<div class="quiz-head"><div class="eyebrow">${diagnostic ? 'DIAGNÓSTICO' : 'SIMULADO'} · PERGUNTA ${question.index + 1} DE ${question.total}</div>${question.remaining_ms !== null ? '<div class="duel-clock quiz-clock" role="timer" aria-live="off"></div>' : ''}</div><div class="quiz-progress" aria-hidden="true"><span style="width:${progress}%"></span></div><form id="quiz-form"><fieldset class="quiz-question"><legend>${escapeHtml(question.statement)}</legend>${question.options.map((option, optionIndex) => `<label data-option="${optionIndex}"><input type="radio" name="answer" value="${optionIndex}"><span>${String.fromCharCode(65 + optionIndex)}</span>${escapeHtml(option)}</label>`).join('')}</fieldset><div id="quiz-feedback" class="quiz-feedback" role="status" aria-live="polite"></div><p id="quiz-error" class="form-error" role="alert"></p><button type="submit" class="primary full" id="quiz-confirm" disabled>Confirmar resposta</button></form>`
+    );
+    const form = document.getElementById('quiz-form'),
+      confirmButton = document.getElementById('quiz-confirm'),
+      clock = document.querySelector('.quiz-clock');
+    let sent = false;
+    form.onchange = () => (confirmButton.disabled = sent || !form.elements.answer.value);
+
+    const send = async (answer, auto = false) => {
+      if (sent) return;
+      sent = true;
+      stopQuestionTimer();
+      confirmButton.disabled = true;
+      form.querySelectorAll('input').forEach(input => (input.disabled = true));
+      try {
+        const response = await api('simulation-answer', { id, index: question.index, answer });
+        showFeedback(id, simulation, question, form, response);
+      } catch (error) {
+        // Se o tempo acabou na tela um instante antes do servidor, tenta de novo em seguida.
+        if (auto && answer === -1 && error.status === 400) {
+          sent = false;
+          return setTimeout(() => send(-1, true), 1500);
+        }
+        document.getElementById('quiz-error').textContent = error.message;
+        if (error.status === 409) return setTimeout(() => loadQuestion(id), 1200);
+        sent = false;
+        form.querySelectorAll('input').forEach(input => (input.disabled = false));
+        confirmButton.disabled = !form.elements.answer.value;
+      }
+    };
+    form.onsubmit = event => {
+      event.preventDefault();
+      if (form.elements.answer.value !== '') send(Number(form.elements.answer.value));
+    };
+
+    if (clock) {
+      // Contagem a partir do tempo restante informado pelo servidor.
+      const deadline = Date.now() + question.remaining_ms,
+        tick = () => {
+          if (!document.getElementById('modal')?.open || !document.body.contains(clock))
+            return stopQuestionTimer();
+          const remaining = Math.max(0, deadline - Date.now()),
+            seconds = Math.ceil(remaining / 1000);
+          clock.textContent = `⏱ ${clockText(seconds)}`;
+          clock.classList.toggle('urgent', seconds <= 15);
+          if (remaining <= 0) {
+            stopQuestionTimer();
+            // Tempo esgotado: envia a alternativa marcada (se houver) ou "sem resposta".
+            const chosen = form.elements.answer.value;
+            send(chosen === '' ? -1 : Number(chosen), true);
+          }
+        };
+      tick();
+      questionTimer = setInterval(tick, 250);
+    }
+  }
+
+  function showFeedback(id, simulation, question, form, response) {
+    const feedback = response.feedback,
+      box = document.getElementById('quiz-feedback'),
+      button = document.getElementById('quiz-confirm'),
+      label = index => form.querySelector(`[data-option="${index}"]`),
+      letter = index => String.fromCharCode(65 + index),
+      option = index => escapeHtml(question.options[index]);
+    if (feedback.is_correct === undefined) {
+      // Diagnóstico: só confirma o registro, sem revelar a resposta correta.
+      box.className = 'quiz-feedback neutral';
+      box.innerHTML = feedback.timed_out
+        ? '<b>⏱ Tempo esgotado.</b> A pergunta foi registrada sem resposta.'
+        : '<b>Resposta registrada.</b>';
+    } else {
+      if (feedback.chosen >= 0)
+        label(feedback.chosen)?.classList.add(feedback.is_correct ? 'right' : 'wrong');
+      label(feedback.correct)?.classList.add('right');
+      box.className = 'quiz-feedback ' + (feedback.is_correct ? 'right' : 'wrong');
+      box.innerHTML = `${
+        feedback.is_correct
+          ? '<b>✓ Você acertou!</b>'
+          : feedback.timed_out
+            ? `<b>⏱ Tempo esgotado.</b> A resposta correta é <b>${letter(feedback.correct)}) ${option(feedback.correct)}</b>.`
+            : `<b>✗ Não foi dessa vez.</b> A resposta correta é <b>${letter(feedback.correct)}) ${option(feedback.correct)}</b>.`
+      }${feedback.explanation ? `<p>${escapeHtml(feedback.explanation)}</p>` : ''}`;
+    }
+    button.disabled = false;
+    if (response.result) {
+      // Última pergunta: atualiza XP e o mapa por trás e oferece o resultado final.
+      state = response.state;
+      updateSidebar();
+      map();
+      button.textContent = 'Ver resultado';
+      button.onclick = event => {
+        event.preventDefault();
+        showSimulationResult(response.result);
+      };
+    } else {
+      button.textContent = 'Próxima pergunta →';
+      button.onclick = event => {
+        event.preventDefault();
+        button.disabled = true;
+        loadQuestion(id);
+      };
+    }
+    button.focus();
   }
 
   function showSimulationResult(result) {

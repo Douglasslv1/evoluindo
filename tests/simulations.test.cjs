@@ -58,8 +58,9 @@ test('simulado da turma congela perguntas, corrige no servidor e concede XP uma 
     assert.equal((await service.execute('me', {}, student)).simulations.length, 0);
     await service.execute('set-simulation-status', { id: simulation.id, status: 'open' }, teacher);
     const start = await service.execute('simulation-start', { id: simulation.id }, student);
-    assert.equal(start.questions.length, 3);
-    assert.equal(start.questions[0].correct, undefined);
+    assert.equal(start.question.total, 3);
+    assert.equal(start.question.correct, undefined);
+    assert.equal(start.questions, undefined, 'Só a pergunta atual é enviada.');
     const submitted = await service.execute(
       'simulation-submit',
       { id: simulation.id, answers: [1, 1, 0] },

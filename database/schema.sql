@@ -105,6 +105,10 @@ create table if not exists public.interface_simulations (
 alter table public.interface_simulations add column if not exists kind text not null default 'practice';
 alter table public.interface_simulations drop constraint if exists interface_simulations_kind_check;
 alter table public.interface_simulations add constraint interface_simulations_kind_check check (kind in ('practice','diagnostic'));
+-- Temporizador opcional por pergunta, em segundos (2026-11-17). Vazio = sem temporizador.
+alter table public.interface_simulations add column if not exists question_seconds integer;
+alter table public.interface_simulations drop constraint if exists interface_simulations_question_seconds_check;
+alter table public.interface_simulations add constraint interface_simulations_question_seconds_check check (question_seconds is null or question_seconds between 10 and 600);
 create table if not exists public.interface_simulation_attempts (
   id uuid primary key,
   simulation_id uuid not null references public.interface_simulations(id) on delete cascade,
@@ -117,6 +121,8 @@ create table if not exists public.interface_simulation_attempts (
   completed_at timestamptz,
   unique(simulation_id,student_id)
 );
+-- Uma pergunta por vez (2026-11-17): quando a pergunta atual foi mostrada, para conferir o temporizador no servidor.
+alter table public.interface_simulation_attempts add column if not exists current_started_at timestamptz;
 create table if not exists public.interface_xp_events (
   id uuid primary key,
   student_id uuid not null references public.interface_students(id) on delete cascade,
@@ -252,6 +258,7 @@ create table if not exists public.interface_schema_migrations (
 insert into public.interface_schema_migrations(id) values ('evoluindo-2026-11-08-v1') on conflict do nothing;
 insert into public.interface_schema_migrations(id) values ('evoluindo-2026-11-12-dificuldade') on conflict do nothing;
 insert into public.interface_schema_migrations(id) values ('evoluindo-2026-11-17-diagnostico') on conflict do nothing;
+insert into public.interface_schema_migrations(id) values ('evoluindo-2026-11-17-uma-por-vez') on conflict do nothing;
 create or replace function public.interface_take_limit(p_key text,p_max integer)
 returns boolean language plpgsql security definer set search_path=public as $$
 declare n integer;
