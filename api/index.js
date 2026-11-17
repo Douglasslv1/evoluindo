@@ -10,6 +10,7 @@ async function handler(req, res) {
     return res.end(JSON.stringify({ error: 'Use POST.' }));
   }
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  let actionName;
   try {
     if (!(req.headers['content-type'] || '').startsWith('application/json')) {
       res.statusCode = 415;
@@ -50,6 +51,7 @@ async function handler(req, res) {
         .map(x => x.trim()),
       raw = cookies.find(x => x.startsWith('interface_session='))?.slice(18);
     let action = body.action;
+    actionName = action;
     if (action === 'logout') {
       res.setHeader(
         'Set-Cookie',
@@ -86,15 +88,41 @@ async function handler(req, res) {
     res.end(JSON.stringify(result));
   } catch (e) {
     res.statusCode = e.status || (e instanceof SyntaxError ? 400 : 503);
+    if (e.status || e instanceof SyntaxError)
+      return res.end(JSON.stringify({ error: e.status ? e.message : 'Envio inválido.' }));
+    // Erro inesperado: registra no log do servidor (Vercel → Logs) e devolve um código de referência
+    // para o professor informar. O registro não inclui o corpo do envio, cookies nem dados de alunos.
+    const ref = reference(req);
+    logError(ref, actionName, e);
     res.end(
       JSON.stringify({
-        error: e.status
-          ? e.message
-          : e instanceof SyntaxError
-            ? 'Envio inválido.'
-            : 'Não foi possível acessar o servidor. Confira a configuração do banco e tente novamente.'
+        error: `Não foi possível acessar o servidor. Confira a configuração do banco e tente novamente. (ref. ${ref})`,
+        ref
       })
     );
   }
+}
+// Usa o identificador da requisição da Vercel quando existe; no servidor local, um código aleatório curto.
+function reference(req) {
+  const vercel = String(req.headers?.['x-vercel-id'] || '')
+    .split('::')
+    .pop();
+  return /^[\w-]{4,80}$/.test(vercel) ? vercel : require('node:crypto').randomBytes(4).toString('hex');
+}
+function logError(ref, action, error) {
+  console.error(
+    JSON.stringify({
+      level: 'error',
+      ref,
+      time: new Date().toISOString(),
+      action: typeof action === 'string' && /^[a-z-]{1,40}$/.test(action) ? action : undefined,
+      message: String(error?.message || error).slice(0, 300),
+      detail: error?.detail,
+      stack: String(error?.stack || '')
+        .split('\n')
+        .slice(1, 6)
+        .map(line => line.trim())
+    })
+  );
 }
 module.exports = handler;

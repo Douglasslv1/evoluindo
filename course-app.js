@@ -820,7 +820,7 @@ function teacherPage() {
     submissions = report?.submissions || [],
     pending = submissions.filter(s => s.status === 'pending');
   $('#screen').innerHTML =
-    `<section class="page"><div class="eyebrow">SALA DE CONTROLE / PROFESSOR</div><div class="section-line"><div><h1>Uma turma.<br><span>Muitos caminhos.</span></h1><p class="lead">Abra as aulas no dia do encontro. Acompanhe a prática e ajude cada aluno a avançar.</p></div><button class="primary" id="new-class">+ Criar turma</button></div><div class="class-toolbar"><label>Turma em acompanhamento<select id="class-select"><option value="">Selecione uma turma</option>${teacher.classes.map(c => `<option value="${c.id}" ${c.id === selectedClass ? 'selected' : ''}>${e(c.name)}</option>`).join('')}</select></label>${cls ? `<div class="class-code"><small>CÓDIGO PARA PRIMEIRO ACESSO</small><b>${e(cls.code)}</b></div><button class="ghost" id="toggle-enrollment">${cls.enrollment_open ? 'Fechar inscrições' : 'Abrir inscrições'}</button><button class="ghost" id="reload-report">↻ Atualizar</button>` : ''}</div>${
+    `<section class="page"><div class="eyebrow">SALA DE CONTROLE / PROFESSOR</div><div class="section-line"><div><h1>Uma turma.<br><span>Muitos caminhos.</span></h1><p class="lead">Abra as aulas no dia do encontro. Acompanhe a prática e ajude cada aluno a avançar.</p></div><div class="button-row"><button class="ghost" id="download-backup">Baixar backup ↓</button><button class="primary" id="new-class">+ Criar turma</button></div></div><div class="class-toolbar"><label>Turma em acompanhamento<select id="class-select"><option value="">Selecione uma turma</option>${teacher.classes.map(c => `<option value="${c.id}" ${c.id === selectedClass ? 'selected' : ''}>${e(c.name)}</option>`).join('')}</select></label>${cls ? `<div class="class-code"><small>CÓDIGO PARA PRIMEIRO ACESSO</small><b>${e(cls.code)}</b></div><button class="ghost" id="toggle-enrollment">${cls.enrollment_open ? 'Fechar inscrições' : 'Abrir inscrições'}</button><button class="ghost" id="reload-report">↻ Atualizar</button>` : ''}</div>${
       !cls
         ? '<div class="empty"><h2>Sua sala começa aqui.</h2><p>Crie uma turma para gerar o código de acesso. As dez aulas começam bloqueadas.</p></div>'
         : `<div class="teacher-metrics"><article><span>ALUNOS CADASTRADOS</span><strong>${students.length}</strong></article><article><span>AULAS ABERTAS</span><strong>${cls.released.length}<small> / 10</small></strong></article><article><span>ENTREGAS PARA AVALIAR</span><strong>${pending.length}</strong></article><article><span>MISSÕES APROVADAS</span><strong>${submissions.filter(s => s.status === 'approved').length}</strong></article></div><div class="section-line"><div><div class="eyebrow">VOCÊ DEFINE O RITMO</div><h2>Liberação por aula.</h2></div><span class="muted small">Fechar uma aula preserva o progresso.</span></div><div class="release-grid">${teacher.curriculum.map(l => `<article class="release-card ${cls.released.includes(l.id) ? 'released' : ''}"><span class="eyebrow">AULA ${String(l.id).padStart(2, '0')}</span><h3>${e(l.title)}</h3><p>${e(l.subtitle)}</p><div class="button-row"><button class="${cls.released.includes(l.id) ? 'ghost' : 'primary'}" data-release="${l.id}">${cls.released.includes(l.id) ? 'Fechar aula' : 'Liberar aula ↗'}</button><button class="text-btn" data-preview="${l.id}">Explorar</button></div></article>`).join('')}</div><div class="section-line"><div><div class="eyebrow">DEVOLUTIVAS QUE ENSINAM</div><h2>Entregas e projetos.</h2></div><label class="compact-label">Mostrar<select id="delivery-filter"><option value="pending">Aguardando avaliação</option><option value="all">Todas as entregas</option></select></label></div><div id="teacher-deliveries"></div><div class="section-line"><div><div class="eyebrow">ACOMPANHAMENTO INDIVIDUAL</div><h2>Alunos da turma.</h2></div><div class="button-row"><button class="ghost" id="complement-settings">Nota complementar ⚙</button><button class="ghost" id="export-class">Baixar relatório CSV ↓</button></div></div><div class="table-scroll roster"><table><thead><tr><th>Aluno e código pessoal</th><th>XP</th><th>Missões</th><th>Nota oficial</th><th>Nota complementar</th><th>Ações</th></tr></thead><tbody>${students
@@ -833,6 +833,7 @@ function teacherPage() {
             )}</tbody></table>${students.length ? '' : '<p class="muted">Compartilhe o código da turma para os alunos se cadastrarem.</p>'}</div>`
     }<div class="callout">Equilíbrio na sala: pratique primeiro uma missão em dupla e depois individualmente. Os bônus são opcionais. O aluno pode usar dicas sem perder XP.</div></section>`;
   $('#new-class').onclick = createClass;
+  $('#download-backup').onclick = downloadBackup;
   $('#class-select').onchange = async ev => {
     selectedClass = ev.target.value;
     report = null;
@@ -875,6 +876,47 @@ function teacherPage() {
   $$('[data-grade]').forEach(b => (b.onclick = () => officialGrade(b.dataset.grade)));
   $('#export-class').onclick = exportClass;
   $('#complement-settings').onclick = complementSettings;
+}
+// Backup completo em JSON: o servidor envia uma tabela por vez, em páginas; o arquivo é montado no navegador.
+async function downloadBackup() {
+  if (
+    !confirm(
+      'O backup contém nomes, códigos pessoais, entregas, notas e os PINs dos alunos protegidos por hash. Guarde o arquivo em local seguro e não o compartilhe. Baixar agora?'
+    )
+  )
+    return;
+  const button = $('#download-backup'),
+    label = button.textContent;
+  button.disabled = true;
+  try {
+    const plan = await api('backup-tables'),
+      tables = {};
+    for (const [index, table] of plan.tables.entries()) {
+      button.textContent = `Exportando ${index + 1} de ${plan.tables.length}…`;
+      tables[table] = [];
+      let offset = 0;
+      while (offset !== null) {
+        const page = await api('backup-table', { table, offset });
+        tables[table].push(...page.rows);
+        offset = page.next;
+      }
+    }
+    const now = new Date(),
+      counts = Object.fromEntries(Object.entries(tables).map(([name, rows]) => [name, rows.length]));
+    downloadText(
+      `backup-evoluindo-${now.toISOString().slice(0, 10)}.json`,
+      JSON.stringify({ format: plan.format, exported_at: now.toISOString(), counts, tables }, null, 2)
+    );
+    const count = (n = 0, one, many) => `${format(n)} ${n === 1 ? one : many}`;
+    toast(
+      `Backup baixado: ${count(counts.students, 'aluno', 'alunos')}, ${count(counts.classes, 'turma', 'turmas')} e ${count(counts.questions, 'pergunta', 'perguntas')}.`
+    );
+  } catch (err) {
+    toast('Não foi possível concluir o backup: ' + err.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = label;
+  }
 }
 function createClass() {
   modal(

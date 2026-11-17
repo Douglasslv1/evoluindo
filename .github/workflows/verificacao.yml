@@ -1,0 +1,61 @@
+# Verificação automática: roda a cada push na main e em cada pull request.
+# Não bloqueia o deploy da Vercel (que é independente), mas mostra no GitHub se algo quebrou.
+name: Verificação
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    name: Formatação, sintaxe, testes e build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Conferir formatação (Prettier)
+        run: npm run format:check
+
+      - name: Conferir sintaxe
+        run: npm run check
+
+      - name: Rodar testes
+        run: npm test
+
+      - name: Gerar build
+        run: npm run build
+
+      # Se database/schema.sql mudou, o banco do Supabase precisa ser atualizado antes de publicar.
+      - name: Avisar sobre mudanças no banco
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            echo "Sem commit anterior para comparar."
+            exit 0
+          fi
+          if git diff --quiet "$BASE" HEAD -- database/schema.sql; then
+            echo "database/schema.sql não mudou."
+            exit 0
+          fi
+          echo "::warning file=database/schema.sql,title=Banco de dados::schema.sql mudou. Execute database/schema.sql no SQL Editor do Supabase antes (ou logo depois) de publicar, e confira com database/verify-after-schema.sql."
+          {
+            echo "### ⚠️ Atualização do banco necessária"
+            echo ""
+            echo "\`database/schema.sql\` mudou neste envio. Execute o arquivo inteiro no SQL Editor do Supabase e depois \`database/verify-after-schema.sql\`. Veja ATUALIZAR.md."
+          } >> "$GITHUB_STEP_SUMMARY"

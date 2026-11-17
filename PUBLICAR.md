@@ -41,3 +41,26 @@ npm run verify:deployment
 8. Exporte os relatórios CSV e valide os valores.
 
 Somente depois desse roteiro use a publicação com alunos reais.
+
+## 5. Operação do dia a dia
+
+### Verificação automática no GitHub
+
+A cada push na `main` e em cada pull request, o GitHub Actions (`.github/workflows/verificacao.yml`) confere formatação, sintaxe, testes e build. O resultado aparece na aba **Actions** do repositório e ao lado de cada commit (✓ ou ✗). Essa verificação não impede o deploy da Vercel, que é independente: se aparecer ✗, corrija antes de usar a versão com alunos.
+
+Quando um envio altera `database/schema.sql`, a verificação mostra o aviso **"Atualização do banco necessária"**. Execute o arquivo no SQL Editor do Supabase (veja ATUALIZAR.md).
+
+### Backup
+
+No painel do professor, use **Baixar backup ↓** (ao lado de "+ Criar turma"). O arquivo `backup-evoluindo-AAAA-MM-DD.json` traz todas as tabelas: turmas, alunos, entregas, notas, perguntas, simulados, campeonatos e XP.
+
+- Ele contém dados pessoais e os PINs dos alunos protegidos por hash. Guarde em local seguro (por exemplo, uma pasta privada na nuvem) e não compartilhe.
+- Não contém a senha do professor nem o segredo das sessões, que ficam só na Vercel.
+- Sugestão: baixe um backup por semana e sempre antes de atualizar o banco ou encerrar um semestre.
+- O plano gratuito do Supabase não oferece backups para baixar; este arquivo é a cópia sob seu controle. A restauração ainda não é automática: em caso de perda, o arquivo permite reconstruir os registros com apoio técnico.
+
+### Registro de erros
+
+Erros inesperados aparecem em **Vercel → projeto → Logs** como uma linha JSON com `level: "error"`, a ação, a mensagem e, quando o banco recusou a operação, o motivo informado pelo Supabase (por exemplo, uma coluna ausente). O registro não inclui o conteúdo enviado, cookies nem dados dos alunos.
+
+O usuário vê a mensagem de erro com um código, como `(ref. abc12-...)`. Peça esse código e procure por ele nos Logs da Vercel para achar o registro correspondente.
