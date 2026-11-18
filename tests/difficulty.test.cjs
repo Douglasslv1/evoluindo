@@ -182,3 +182,54 @@ test('professor cadastra e importa dificuldade; nivelamento, duelos e simulados 
     fs.rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test('banco lista por dificuldade e mantém a ordem do arquivo importado dentro de cada nível', async () => {
+  const base = path.resolve(__dirname, '..', 'test-output');
+  fs.mkdirSync(base, { recursive: true });
+  const directory = fs.mkdtempSync(path.join(base, 'evoluindo-order-'));
+  try {
+    const service = createService({ file: path.join(directory, 'data.json') }),
+      teacher = await service.session(
+        (await service.execute('setup', { password: 'senha-de-teste-forte' })).token
+      ),
+      classroom = (await service.execute('create-class', { name: 'Turma ordem' }, teacher)).classroom,
+      subject = (
+        await service.execute('create-subject', { name: 'Disciplina ordem', classId: classroom.id }, teacher)
+      ).subject,
+      bank = (
+        await service.execute('create-question-bank', { subjectId: subject.id, name: 'Banco ordem' }, teacher)
+      ).bank;
+    // Arquivo misturado: difícil, fácil, média, fácil, difícil, média.
+    const file = [
+      ['Zeta difícil?', 'hard'],
+      ['Beta fácil?', 'easy'],
+      ['Ômega média?', 'medium'],
+      ['Alfa fácil?', 'easy'],
+      ['Gama difícil?', 'hard'],
+      ['Delta média?', 'medium']
+    ].map(([statement, difficulty]) => ({ statement, options: ['A', 'B'], correct: 0, difficulty }));
+    await service.execute('import-questions', { bankId: bank.id, questions: file }, teacher);
+    const expected = [
+      'Beta fácil?',
+      'Alfa fácil?',
+      'Ômega média?',
+      'Delta média?',
+      'Zeta difícil?',
+      'Gama difícil?'
+    ];
+    const listed = (await service.execute('bank-questions', { bankId: bank.id }, teacher)).questions;
+    assert.deepEqual(
+      listed.map(question => question.statement),
+      expected,
+      'Fáceis, depois médias, depois difíceis; dentro do nível, a ordem do arquivo.'
+    );
+    const exported = await service.execute('export-question-bank', { bankId: bank.id }, teacher);
+    assert.deepEqual(
+      exported.questions.map(question => question.statement),
+      expected
+    );
+  } finally {
+    if (path.dirname(path.resolve(directory)) !== base) throw Error('Diretório de teste inválido.');
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});

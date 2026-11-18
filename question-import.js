@@ -34,7 +34,8 @@
       error = document.getElementById('question-import-error'),
       confirm = document.getElementById('confirm-question-import');
     document.getElementById('download-question-template').onclick = downloadTemplate;
-    document.getElementById('cancel-question-import').onclick = () => openQuestionBank(bank.id);
+    // openQuestionBank fica em evoluindo-admin.js e é exposta em window para este arquivo.
+    document.getElementById('cancel-question-import').onclick = () => window.openQuestionBank(bank.id);
     file.onchange = async () => {
       questions = null;
       confirm.disabled = true;
@@ -71,16 +72,23 @@
       if (!questions) return;
       confirm.disabled = true;
       confirm.textContent = 'Validando e importando…';
+      let result;
       try {
-        const result = await originalApi('import-questions', { bankId: bank.id, questions });
-        toast(
-          `${result.imported} pergunta${result.imported === 1 ? ' importada' : 's importadas'} com sucesso.`
-        );
-        await openQuestionBank(bank.id);
+        result = await originalApi('import-questions', { bankId: bank.id, questions });
       } catch (reason) {
         error.textContent = reason.message;
         confirm.disabled = false;
         confirm.textContent = 'Confirmar importação';
+        return;
+      }
+      toast(
+        `${result.imported} pergunta${result.imported === 1 ? ' importada' : 's importadas'} com sucesso.`
+      );
+      // A importação já terminou: um problema ao recarregar a lista não deve parecer falha na importação.
+      try {
+        await window.openQuestionBank(bank.id);
+      } catch {
+        document.getElementById('modal')?.close();
       }
     };
   }

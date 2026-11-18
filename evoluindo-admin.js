@@ -676,13 +676,41 @@
     };
   }
 
+  // Usada também pela importação de JSON (question-import.js), que fica em outro arquivo.
+  window.openQuestionBank = bankId => openQuestionBank(bankId);
+
   async function openQuestionBank(bankId) {
     try {
       const data = await api('bank-questions', { bankId }),
         bank = data.bank,
         questions = data.questions;
+      // Organizado por dificuldade: fáceis, médias e difíceis, cada grupo com título e contagem.
+      // Dentro do grupo, a ordem de cadastro (ou do arquivo importado) vem do servidor.
+      const plural = {
+          easy: ['fácil', 'fáceis'],
+          medium: ['média', 'médias'],
+          hard: ['difícil', 'difíceis']
+        },
+        groups = ['easy', 'medium', 'hard']
+          .map(level => ({
+            level,
+            items: questions.filter(question => (question.difficulty || 'medium') === level)
+          }))
+          .filter(group => group.items.length),
+        summary = groups
+          .map(group => `${group.items.length} ${plural[group.level][group.items.length === 1 ? 0 : 1]}`)
+          .join(' · '),
+        row = (question, number) =>
+          `<article><span>${String(number).padStart(2, '0')}</span><div><b>${escapeHtml(question.statement)}</b><small>${question.options.length} alternativas · resposta: ${escapeHtml(question.options[question.correct])}</small></div><div><button type="button" class="text-btn" data-edit-question="${escapeHtml(question.id)}">Editar</button><button type="button" class="text-btn danger" data-delete-question="${escapeHtml(question.id)}">Excluir</button></div></article>`;
       modal(
-        `<div class="eyebrow">BANCO DE PERGUNTAS / REVISÃO ${bank.revision}</div><div class="subject-heading"><div><h2>${escapeHtml(bank.name)}</h2><p>${escapeHtml(bank.description || 'Cadastre perguntas para utilizar este banco.')}</p></div><button type="button" class="primary" id="new-question">+ Nova pergunta</button></div><div class="question-list">${questions.map((question, index) => `<article><span>${String(index + 1).padStart(2, '0')}</span><div><b>${escapeHtml(question.statement)}</b><small><span class="difficulty-pill ${escapeHtml(question.difficulty || 'medium')}">${difficultyLabels[question.difficulty] || difficultyLabels.medium}</span> ${question.options.length} alternativas · resposta: ${escapeHtml(question.options[question.correct])}</small></div><div><button type="button" class="text-btn" data-edit-question="${escapeHtml(question.id)}">Editar</button><button type="button" class="text-btn danger" data-delete-question="${escapeHtml(question.id)}">Excluir</button></div></article>`).join('') || '<div class="empty compact">Nenhuma pergunta cadastrada neste banco.</div>'}</div><button type="button" class="ghost" id="back-to-banks">← Voltar aos bancos</button>`
+        `<div class="eyebrow">BANCO DE PERGUNTAS / REVISÃO ${bank.revision}</div><div class="subject-heading"><div><h2>${escapeHtml(bank.name)}</h2><p>${escapeHtml(bank.description || 'Cadastre perguntas para utilizar este banco.')}</p>${summary ? `<p class="muted small">${questions.length} pergunta${questions.length === 1 ? '' : 's'}: ${summary}</p>` : ''}</div><button type="button" class="primary" id="new-question">+ Nova pergunta</button></div><div class="question-list">${
+          groups
+            .map(
+              group =>
+                `<section class="question-group"><h3><span class="difficulty-pill ${group.level}">${difficultyLabels[group.level]}</span> ${group.items.length} pergunta${group.items.length === 1 ? '' : 's'}</h3>${group.items.map((question, index) => row(question, index + 1)).join('')}</section>`
+            )
+            .join('') || '<div class="empty compact">Nenhuma pergunta cadastrada neste banco.</div>'
+        }</div><button type="button" class="ghost" id="back-to-banks">← Voltar aos bancos</button>`
       );
       document.getElementById('new-question').onclick = () => questionForm(bank, null);
       document.getElementById('back-to-banks').onclick = async () => {

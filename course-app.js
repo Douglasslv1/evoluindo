@@ -52,10 +52,10 @@ function modal(html) {
   $('#modal-content').innerHTML = html;
   if (!$('#modal').open) $('#modal').showModal();
 }
+// A janela fecha só pelo X (ou pelos botões da própria janela): clicar fora ou apertar Esc não fecha,
+// para não perder sem querer um formulário, um questionário ou um campeonato em andamento.
 $('.close').onclick = () => $('#modal').close();
-$('#modal').onclick = ev => {
-  if (ev.target === $('#modal')) $('#modal').close();
-};
+$('#modal').oncancel = ev => ev.preventDefault();
 function format(n) {
   return Number(n).toLocaleString('pt-BR');
 }

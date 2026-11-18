@@ -2420,3 +2420,16 @@ summary b {
 .timer-settings {
   margin-top: 8px;
 }
+.question-group + .question-group {
+  margin-top: 18px;
+}
+.question-group h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--evo-navy);
+}
