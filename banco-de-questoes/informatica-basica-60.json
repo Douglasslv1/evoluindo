@@ -1,0 +1,595 @@
+{
+  "format": "evoluindo-question-bank-v1",
+  "subject": "Informática Básica",
+  "bank": {
+    "name": "Conhecimentos de informática",
+    "description": "60 perguntas sobre hardware, Windows, editor de texto, planilhas, macros, apresentações e banco de dados (20 fáceis, 20 médias e 20 difíceis). Sem perguntas de história do computador."
+  },
+  "questions": [
+    {
+      "statement": "Qual destes equipamentos é um dispositivo de entrada?",
+      "options": ["Monitor", "Impressora", "Teclado", "Caixa de som"],
+      "correct": 2,
+      "explanation": "O teclado envia informações para o computador. Monitor, impressora e caixa de som recebem informações dele (são de saída).",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "Qual destes equipamentos é um dispositivo de saída?",
+      "options": ["Monitor", "Mouse", "Microfone", "Scanner"],
+      "correct": 0,
+      "explanation": "O monitor mostra o resultado do processamento. Mouse, microfone e scanner enviam dados para o computador.",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "Qual componente executa as instruções dos programas e por isso costuma ser chamado de \"cérebro\" do computador?",
+      "options": ["Memória RAM", "Fonte de alimentação", "Placa de rede", "Processador (CPU)"],
+      "correct": 3,
+      "explanation": "O processador (CPU) busca, interpreta e executa as instruções dos programas.",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "O que é software?",
+      "options": [
+        "A parte física do computador, como peças e cabos",
+        "Os programas e sistemas que dão instruções ao computador",
+        "Somente os jogos instalados",
+        "A tela onde aparecem as imagens"
+      ],
+      "correct": 1,
+      "explanation": "Software são os programas (como o Windows, o navegador e o editor de texto). A parte física é o hardware.",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "Qual destes itens é um exemplo de hardware?",
+      "options": ["Pen drive", "Windows", "Navegador de internet", "Editor de texto"],
+      "correct": 0,
+      "explanation": "Pen drive é um equipamento físico. Os outros itens são programas (software).",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "Qual é a função principal de um sistema operacional, como o Windows?",
+      "options": [
+        "Criar planilhas e gráficos",
+        "Apenas acessar a internet",
+        "Gerenciar o computador e permitir que a pessoa use os programas",
+        "Imprimir documentos"
+      ],
+      "correct": 2,
+      "explanation": "O sistema operacional controla os recursos do computador (memória, arquivos, dispositivos) e serve de base para os outros programas.",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "Para que serve uma pasta no Windows?",
+      "options": [
+        "Para aumentar a memória do computador",
+        "Para acelerar o processador",
+        "Para imprimir vários arquivos de uma vez",
+        "Para organizar e agrupar arquivos"
+      ],
+      "correct": 3,
+      "explanation": "Pastas guardam arquivos e outras pastas, ajudando a organizar e encontrar o que é preciso.",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "Você minimizou a janela da Calculadora. Onde ela continua disponível para ser aberta de novo?",
+      "options": ["Na Lixeira", "Na barra de tarefas", "No Painel de Controle", "Na pasta Documentos"],
+      "correct": 1,
+      "explanation": "Janelas minimizadas continuam abertas e ficam como ícone na barra de tarefas. Basta clicar nele para voltar.",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "Qual atalho de teclado normalmente desfaz a última ação?",
+      "options": ["Ctrl + P", "Ctrl + S", "Ctrl + Z", "Ctrl + N"],
+      "correct": 2,
+      "explanation": "Ctrl + Z desfaz a última ação na maioria dos programas, como editores de texto e planilhas.",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "Qual atalho de teclado cola o texto que foi copiado ou recortado?",
+      "options": ["Ctrl + V", "Ctrl + C", "Ctrl + X", "Ctrl + Z"],
+      "correct": 0,
+      "explanation": "Ctrl + V cola. Ctrl + C copia, Ctrl + X recorta (tira do lugar para colar em outro) e Ctrl + Z desfaz.",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "Qual atalho de teclado copia o texto ou o arquivo selecionado?",
+      "options": ["Ctrl + V", "Ctrl + A", "Ctrl + Z", "Ctrl + C"],
+      "correct": 3,
+      "explanation": "Ctrl + C copia o que está selecionado. Depois, Ctrl + V cola a cópia onde você quiser.",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "Em uma planilha, como se chama o encontro de uma coluna com uma linha, como B3?",
+      "options": ["Pasta", "Célula", "Slide", "Registro"],
+      "correct": 1,
+      "explanation": "Cada célula tem um endereço formado pela letra da coluna e pelo número da linha, como B3.",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "Em uma planilha, toda fórmula deve começar com qual sinal?",
+      "options": ["#", "@", "&", "="],
+      "correct": 3,
+      "explanation": "O sinal de igual (=) avisa à planilha que o conteúdo é uma fórmula, como =B2+B3.",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "Qual símbolo é usado para multiplicar nas fórmulas de uma planilha?",
+      "options": ["*", "x", "÷", ":"],
+      "correct": 0,
+      "explanation": "Na planilha, o asterisco (*) multiplica e a barra (/) divide. Por exemplo: =B2*C2.",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "Qual função de planilha soma os valores de um intervalo de células?",
+      "options": ["MÉDIA", "SE", "SOMA", "PROCV"],
+      "correct": 2,
+      "explanation": "A função SOMA adiciona todos os valores do intervalo, como em =SOMA(B2:B10).",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "Em um editor de texto, qual recurso deixa uma palavra com o traço mais grosso, para destacá-la?",
+      "options": ["Itálico", "Negrito", "Sublinhado", "Tachado"],
+      "correct": 1,
+      "explanation": "O negrito (atalho Ctrl + N no Word em português) deixa as letras mais grossas e chama a atenção para a palavra.",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "Para que serve um programa de apresentação de slides, como o PowerPoint?",
+      "options": [
+        "Mostrar ideias em telas organizadas para um público",
+        "Fazer cálculos com fórmulas",
+        "Guardar cadastros de clientes em tabelas",
+        "Instalar o sistema operacional"
+      ],
+      "correct": 0,
+      "explanation": "Slides organizam a mensagem em etapas visuais, com textos curtos, imagens e vídeos, para apoiar quem está apresentando.",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "Em um banco de dados, como se chama cada linha de uma tabela, como os dados completos de um cliente?",
+      "options": ["Campo", "Coluna", "Fórmula", "Registro"],
+      "correct": 3,
+      "explanation": "Cada linha é um registro (um item). Cada coluna é um campo (uma característica, como nome ou telefone).",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "O que acontece quando você envia um arquivo para a Lixeira do Windows?",
+      "options": [
+        "Ele é apagado para sempre na mesma hora",
+        "Ele é enviado por e-mail",
+        "Ele pode ser restaurado enquanto a Lixeira não for esvaziada",
+        "Ele é movido para a memória RAM"
+      ],
+      "correct": 2,
+      "explanation": "A Lixeira guarda os arquivos excluídos do disco do computador. É possível restaurá-los até que a Lixeira seja esvaziada.",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "Qual destas unidades de informação é a menor?",
+      "options": ["Byte", "Bit", "Kilobyte (KB)", "Megabyte (MB)"],
+      "correct": 1,
+      "explanation": "O bit é a menor unidade: vale 0 ou 1. Oito bits formam um byte.",
+      "difficulty": "fácil"
+    },
+    {
+      "statement": "O computador desligou antes de você salvar o documento e as alterações se perderam. Qual é a explicação?",
+      "options": [
+        "O processador apagou o arquivo",
+        "As alterações estavam só na memória RAM, que perde o conteúdo sem energia",
+        "O monitor desligou antes do computador",
+        "O arquivo foi enviado para a Lixeira"
+      ],
+      "correct": 1,
+      "explanation": "Enquanto você edita, o trabalho fica na RAM, que é volátil. Só ao salvar ele vai para o armazenamento (SSD ou HD), que guarda os dados sem energia.",
+      "difficulty": "média"
+    },
+    {
+      "statement": "Qual é a principal diferença entre a memória RAM e o armazenamento (SSD ou HD)?",
+      "options": [
+        "A RAM guarda temporariamente o que está em uso; o armazenamento guarda os arquivos mesmo com o computador desligado",
+        "A RAM guarda os arquivos para sempre; o SSD guarda só por alguns minutos",
+        "São a mesma peça com nomes diferentes",
+        "O armazenamento guarda apenas programas e a RAM guarda apenas fotos"
+      ],
+      "correct": 0,
+      "explanation": "A RAM é rápida e temporária. O armazenamento é permanente e é onde ficam os arquivos salvos.",
+      "difficulty": "média"
+    },
+    {
+      "statement": "Quantos bits formam 1 byte?",
+      "options": ["2", "4", "8", "16"],
+      "correct": 2,
+      "explanation": "Um byte tem 8 bits. Um byte costuma representar um caractere, como uma letra.",
+      "difficulty": "média"
+    },
+    {
+      "statement": "Um computador fica lento com o navegador cheio de abas, uma chamada de vídeo e vários documentos abertos. Qual recurso costuma se esgotar primeiro nessa situação?",
+      "options": ["O teclado", "O monitor", "A caixa de som", "A memória RAM"],
+      "correct": 3,
+      "explanation": "Cada programa aberto ocupa memória RAM. Quando ela enche, o computador passa a usar o disco como apoio, que é bem mais lento.",
+      "difficulty": "média"
+    },
+    {
+      "statement": "No caminho C:\\Estudos\\Clientes\\Ana\\relatorio.pdf, em qual pasta o arquivo está diretamente?",
+      "options": ["Estudos", "Clientes", "Ana", "C:"],
+      "correct": 2,
+      "explanation": "O caminho vai da unidade (C:) até o arquivo, passando pelas pastas na ordem. A última pasta antes do nome do arquivo é a pasta Ana.",
+      "difficulty": "média"
+    },
+    {
+      "statement": "No arquivo \"relatorio.pdf\", o que indica a parte \".pdf\"?",
+      "options": [
+        "O nome da pasta onde ele está",
+        "O tamanho do arquivo",
+        "A extensão, que mostra o tipo do arquivo",
+        "A data em que foi criado"
+      ],
+      "correct": 2,
+      "explanation": "A extensão indica o tipo do arquivo e qual programa o abre: .pdf (documento PDF), .docx (Word), .xlsx (Excel), .jpg (imagem).",
+      "difficulty": "média"
+    },
+    {
+      "statement": "Qual nome de arquivo é o mais claro para ser encontrado depois?",
+      "options": ["documento final final 2.docx", "aaa.xlsx", "novo.docx", "2026-03-orcamento-oficina.xlsx"],
+      "correct": 3,
+      "explanation": "Um bom nome diz o que é o arquivo e quando foi feito. Começar pela data (ano-mês) também deixa os arquivos em ordem na pasta.",
+      "difficulty": "média"
+    },
+    {
+      "statement": "Qual é a diferença entre \"Salvar\" e \"Salvar como\"?",
+      "options": [
+        "Não há diferença entre os dois",
+        "\"Salvar como\" permite escolher outro nome, pasta ou formato, criando uma cópia",
+        "\"Salvar\" sempre cria um arquivo novo",
+        "\"Salvar como\" apaga o arquivo original"
+      ],
+      "correct": 1,
+      "explanation": "\"Salvar\" grava as mudanças no mesmo arquivo. \"Salvar como\" permite gravar uma versão com outro nome, em outro lugar ou em outro formato.",
+      "difficulty": "média"
+    },
+    {
+      "statement": "Em uma planilha, B2, B3 e B4 contêm 2, 4 e 6. Qual fórmula retorna 4?",
+      "options": ["=SOMA(B2:B4)", "=B2*B3", "=MÉDIA(B2:B4)", "=B4-B3"],
+      "correct": 2,
+      "explanation": "A média é (2 + 4 + 6) / 3 = 4. A soma daria 12, B2*B3 daria 8 e B4-B3 daria 2.",
+      "difficulty": "média"
+    },
+    {
+      "statement": "O que significa o intervalo B2:B5 em uma fórmula?",
+      "options": [
+        "As células de B2 até B5",
+        "Apenas as células B2 e B5",
+        "A divisão de B2 por B5",
+        "A coluna B inteira"
+      ],
+      "correct": 0,
+      "explanation": "Os dois-pontos indicam \"até\": B2:B5 inclui B2, B3, B4 e B5.",
+      "difficulty": "média"
+    },
+    {
+      "statement": "A quantidade está em B2 e o preço unitário em C2. Qual fórmula calcula o valor total?",
+      "options": ["=B2+C2", "=B2/C2", "=SOMA(B2;C2)", "=B2*C2"],
+      "correct": 3,
+      "explanation": "Total = quantidade × preço unitário. Na planilha, a multiplicação usa o asterisco: =B2*C2.",
+      "difficulty": "média"
+    },
+    {
+      "statement": "A fórmula =SE(B2>=7;\"Aprovado\";\"Revisar\") retorna o que quando B2 vale 7?",
+      "options": ["\"Aprovado\"", "\"Revisar\"", "Um erro", "O número 7"],
+      "correct": 0,
+      "explanation": "O sinal >= significa \"maior ou igual\". Como 7 é igual a 7, a condição é verdadeira e a fórmula retorna o primeiro resultado: \"Aprovado\".",
+      "difficulty": "média"
+    },
+    {
+      "statement": "Para que serve a função SOMASE?",
+      "options": [
+        "Somar todas as células da planilha",
+        "Somar apenas os valores que atendem a um critério",
+        "Calcular a média de um intervalo",
+        "Buscar um valor em outra tabela"
+      ],
+      "correct": 1,
+      "explanation": "SOMASE soma só as linhas que atendem a uma condição, por exemplo as horas da categoria \"Estudo\".",
+      "difficulty": "média"
+    },
+    {
+      "statement": "Para que serve a função PROCV?",
+      "options": [
+        "Ordenar uma lista em ordem alfabética",
+        "Somar os valores de uma coluna",
+        "Procurar um valor na primeira coluna de uma tabela e trazer uma informação de outra coluna da mesma linha",
+        "Criar um gráfico a partir dos dados"
+      ],
+      "correct": 2,
+      "explanation": "PROCV procura, por exemplo, o código de um produto e devolve o preço que está na mesma linha da tabela.",
+      "difficulty": "média"
+    },
+    {
+      "statement": "O que é uma macro em uma planilha?",
+      "options": [
+        "Um tipo de gráfico",
+        "Um arquivo de imagem",
+        "Uma fórmula que só sabe somar",
+        "Uma sequência de ações gravada ou programada para ser repetida automaticamente"
+      ],
+      "correct": 3,
+      "explanation": "Macros automatizam tarefas repetitivas, como formatar um relatório e salvar uma cópia, com um único comando.",
+      "difficulty": "média"
+    },
+    {
+      "statement": "Qual formato de arquivo do Excel pode guardar macros VBA?",
+      "options": [".xlsx", ".xlsm", ".csv", ".pdf"],
+      "correct": 1,
+      "explanation": "O \"m\" de .xlsm indica que a pasta de trabalho pode conter macros. O formato .xlsx não guarda macros.",
+      "difficulty": "média"
+    },
+    {
+      "statement": "Qual escolha deixa um slide mais fácil de ler?",
+      "options": [
+        "Uma ideia principal, poucas palavras e uma imagem que ajude a explicar",
+        "Muito texto em letras pequenas",
+        "Várias cores de fundo e animação em todos os itens",
+        "Copiar parágrafos inteiros do material de estudo"
+      ],
+      "correct": 0,
+      "explanation": "O slide apoia a fala: pouco texto, letra grande e imagens com propósito ajudam o público a acompanhar.",
+      "difficulty": "média"
+    },
+    {
+      "statement": "Ao usar uma imagem em um slide, qual atitude é adequada?",
+      "options": [
+        "Usar qualquer imagem da internet sem citar",
+        "Deixar a imagem bem pequena para ninguém notar",
+        "Colocar imagens sem relação com o tema para enfeitar",
+        "Usar imagens próprias, de uso livre ou com a fonte citada"
+      ],
+      "correct": 3,
+      "explanation": "Respeitar o direito de quem criou a imagem é obrigatório. Imagens próprias, de bancos livres ou com a fonte citada são o caminho correto.",
+      "difficulty": "média"
+    },
+    {
+      "statement": "Em um banco de dados, o que é um campo?",
+      "options": [
+        "Uma linha com todos os dados de um item",
+        "Uma característica guardada para cada registro, como nome ou estoque",
+        "O nome do arquivo do banco",
+        "A senha de acesso ao banco"
+      ],
+      "correct": 1,
+      "explanation": "Campos são as colunas da tabela. Cada registro (linha) tem um valor para cada campo.",
+      "difficulty": "média"
+    },
+    {
+      "statement": "Qual campo é o mais adequado como chave primária de uma tabela de itens?",
+      "options": ["Nome do item", "Cor do item", "Quantidade em estoque", "Um código único, como id"],
+      "correct": 3,
+      "explanation": "A chave primária precisa ser única e não mudar. Nomes e cores podem se repetir, e o estoque muda o tempo todo.",
+      "difficulty": "média"
+    },
+    {
+      "statement": "Quantos valores diferentes podem ser representados com 8 bits?",
+      "options": ["8", "64", "128", "256"],
+      "correct": 3,
+      "explanation": "Cada bit tem 2 possibilidades (0 ou 1). Com 8 bits: 2 × 2 × 2 × 2 × 2 × 2 × 2 × 2 = 2⁸ = 256 combinações.",
+      "difficulty": "difícil"
+    },
+    {
+      "statement": "Um arquivo de 2 GB precisa ser copiado para um pen drive com 1.500 MB livres. O que acontece?",
+      "options": [
+        "Cabe, porque 2 GB é menor que 1.500 MB",
+        "Não cabe, porque 2 GB equivalem a cerca de 2.000 MB",
+        "Cabe, mas o arquivo perde a extensão",
+        "Não cabe, porque pen drives não aceitam arquivos com mais de 1 GB"
+      ],
+      "correct": 1,
+      "explanation": "1 GB equivale a cerca de 1.000 MB (1.024 MB na conta binária). Então 2 GB são aproximadamente 2.000 MB, mais que os 1.500 MB livres.",
+      "difficulty": "difícil"
+    },
+    {
+      "statement": "A célula C2 contém =B2*$E$1. Ao copiar essa fórmula para C3, como ela fica?",
+      "options": ["=B3*$E$2", "=B3*$E$1", "=B2*$E$1", "=C3*$F$1"],
+      "correct": 1,
+      "explanation": "B2 é uma referência relativa e acompanha a cópia (vira B3). O $ em $E$1 fixa coluna e linha, então ela não muda.",
+      "difficulty": "difícil"
+    },
+    {
+      "statement": "C2 contém =B2*E1, em que E1 guarda a taxa usada por todas as linhas. Ao copiar para C3, o resultado sai errado porque a fórmula passou a usar E2. Como corrigir?",
+      "options": [
+        "Trocar B2 por $B$2",
+        "Apagar o sinal de igual",
+        "Trocar E1 por $E$1",
+        "Usar SOMA no lugar da multiplicação"
+      ],
+      "correct": 2,
+      "explanation": "A referência absoluta $E$1 trava a célula da taxa. Assim, ao copiar a fórmula, todas as linhas continuam usando E1.",
+      "difficulty": "difícil"
+    },
+    {
+      "statement": "O que a fórmula =SOMASE(A2:A6;\"Estudo\";B2:B6) calcula?",
+      "options": [
+        "A soma de B2:B6 apenas nas linhas em que A2:A6 é \"Estudo\"",
+        "Quantas vezes a palavra \"Estudo\" aparece",
+        "A soma de A2:A6 quando B2:B6 é \"Estudo\"",
+        "Retorna \"Estudo\" se a soma for positiva"
+      ],
+      "correct": 0,
+      "explanation": "Na SOMASE, o primeiro intervalo é onde o critério é testado, o segundo argumento é o critério e o terceiro é o que será somado.",
+      "difficulty": "difícil"
+    },
+    {
+      "statement": "Um colega escreveu =PROCV(\"P02\";A2:C10;3) sem o último argumento e recebeu um preço errado. Qual é a explicação mais provável?",
+      "options": [
+        "O PROCV não aceita texto como valor procurado",
+        "A coluna 3 não existe no intervalo A2:C10",
+        "O intervalo deveria começar na coluna C",
+        "Sem o último argumento a busca pode ser aproximada; para busca exata, use FALSO como quarto argumento"
+      ],
+      "correct": 3,
+      "explanation": "Quando o quarto argumento é omitido, o PROCV pode fazer correspondência aproximada e trazer a linha errada. A forma segura é =PROCV(\"P02\";A2:C10;3;FALSO).",
+      "difficulty": "difícil"
+    },
+    {
+      "statement": "Na fórmula =PROCV(F2;A2:D20;4;FALSO), o que significa o número 4?",
+      "options": [
+        "A linha onde está o resultado",
+        "A quarta coluna do intervalo A2:D20, de onde vem o valor devolvido",
+        "Quantos resultados serão trazidos",
+        "O número de casas decimais do resultado"
+      ],
+      "correct": 1,
+      "explanation": "O terceiro argumento do PROCV é o número da coluna, contado a partir da primeira coluna do intervalo. Em A2:D20, a coluna 4 é a D.",
+      "difficulty": "difícil"
+    },
+    {
+      "statement": "Qual fórmula mostra \"Atenção\" quando o estoque em B2 é menor que 5 e \"Ok\" nos demais casos?",
+      "options": [
+        "=SE(B2>5;\"Atenção\";\"Ok\")",
+        "=SE(B2<5;\"Ok\";\"Atenção\")",
+        "=SE(B2<5;\"Atenção\";\"Ok\")",
+        "=SOMASE(B2;\"<5\";\"Atenção\")"
+      ],
+      "correct": 2,
+      "explanation": "A estrutura é =SE(condição;valor se verdadeiro;valor se falso). A condição é B2<5, e o resultado verdadeiro deve ser \"Atenção\".",
+      "difficulty": "difícil"
+    },
+    {
+      "statement": "Uma célula mostra o erro #DIV/0!. O que isso indica?",
+      "options": [
+        "A fórmula está dividindo por zero ou por uma célula vazia",
+        "O arquivo está corrompido",
+        "A coluna está estreita demais",
+        "Falta habilitar as macros"
+      ],
+      "correct": 0,
+      "explanation": "Não existe divisão por zero. Confira o divisor da fórmula: ele pode estar zerado ou apontando para uma célula vazia.",
+      "difficulty": "difícil"
+    },
+    {
+      "statement": "Depois de digitar um número grande, a célula passou a mostrar #####. Qual é a solução mais provável?",
+      "options": [
+        "Refazer a fórmula",
+        "Salvar o arquivo como .xlsm",
+        "Aumentar a largura da coluna",
+        "Reiniciar o computador"
+      ],
+      "correct": 2,
+      "explanation": "##### indica que o valor não cabe na largura da coluna. Ao alargá-la, o número aparece normalmente.",
+      "difficulty": "difícil"
+    },
+    {
+      "statement": "Em B2:B6 há quatro números que somam 28, e a célula B6 está vazia. A fórmula =MÉDIA(B2:B6) retorna 7. O que a função fez?",
+      "options": [
+        "Contou a célula vazia como zero e dividiu 28 por 5",
+        "Somou os valores e não dividiu",
+        "Mostrou 7 porque houve um erro",
+        "Ignorou a célula vazia e dividiu 28 por 4"
+      ],
+      "correct": 3,
+      "explanation": "MÉDIA considera só as células com números. Vazias são ignoradas (diferente de uma célula com 0, que entraria na conta): 28 / 4 = 7.",
+      "difficulty": "difícil"
+    },
+    {
+      "statement": "Antes de executar uma macro nova em uma planilha com registros importantes, qual é a atitude mais segura?",
+      "options": [
+        "Executar direto no arquivo original para ganhar tempo",
+        "Fazer uma cópia de segurança e testar a macro na cópia",
+        "Desativar o antivírus antes de executar",
+        "Enviar a planilha a todos os colegas antes de testar"
+      ],
+      "correct": 1,
+      "explanation": "Macros podem alterar muitos dados de uma vez e nem sempre é possível desfazer. Testar em uma cópia protege os registros originais.",
+      "difficulty": "difícil"
+    },
+    {
+      "statement": "Você recebeu por e-mail, de um remetente desconhecido, uma planilha .xlsm pedindo para \"habilitar o conteúdo\". Qual é a atitude correta?",
+      "options": [
+        "Habilitar as macros para ver o conteúdo",
+        "Renomear o arquivo para .xlsx e abrir",
+        "Não habilitar e confirmar a origem antes, pois macros podem executar ações perigosas",
+        "Encaminhar para colegas testarem primeiro"
+      ],
+      "correct": 2,
+      "explanation": "Macros são programas e podem instalar ameaças ou apagar dados. Só habilite macros de fontes confiáveis e confirmadas.",
+      "difficulty": "difícil"
+    },
+    {
+      "statement": "Qual comando SQL mostra todos os campos dos itens com estoque menor que 5?",
+      "options": [
+        "SELECT itens WHERE estoque < 5",
+        "SELECT * FROM itens WHERE estoque < 5",
+        "SELECT * FROM estoque WHERE itens < 5",
+        "DELETE FROM itens WHERE estoque < 5"
+      ],
+      "correct": 1,
+      "explanation": "SELECT * escolhe todos os campos, FROM itens indica a tabela e WHERE estoque < 5 filtra os registros. DELETE apagaria os itens.",
+      "difficulty": "difícil"
+    },
+    {
+      "statement": "Em um banco com as tabelas clientes e pedidos, como cada pedido indica a qual cliente pertence?",
+      "options": [
+        "Com um campo cliente_id em pedidos, que é uma chave estrangeira apontando para a chave primária de clientes",
+        "Repetindo nome, endereço e telefone completos em cada pedido",
+        "Guardando os pedidos dentro do campo nome do cliente",
+        "Criando uma tabela de pedidos separada para cada cliente"
+      ],
+      "correct": 0,
+      "explanation": "A chave estrangeira liga as tabelas sem repetir dados: o pedido guarda só o id do cliente, e os dados do cliente ficam em um único lugar.",
+      "difficulty": "difícil"
+    },
+    {
+      "statement": "Por que dois registros de uma tabela não podem ter a mesma chave primária?",
+      "options": [
+        "Porque deixaria o banco de dados mais lento",
+        "Porque a chave primária é sempre uma senha",
+        "Porque só pode existir um registro por tabela",
+        "Porque a chave primária identifica cada registro de forma única"
+      ],
+      "correct": 3,
+      "explanation": "Se dois registros tivessem a mesma chave, não seria possível saber qual deles atualizar, apagar ou relacionar com outra tabela.",
+      "difficulty": "difícil"
+    },
+    {
+      "statement": "Você precisa enviar um documento que não deve ser alterado e precisa abrir igual em qualquer computador. Qual formato é o mais adequado?",
+      "options": [".docx", ".txt", ".xlsm", ".pdf"],
+      "correct": 3,
+      "explanation": "O PDF preserva a aparência do documento (fontes, imagens, quebras de página) e é feito para leitura, não para edição.",
+      "difficulty": "difícil"
+    },
+    {
+      "statement": "Uma pasta tem \"relatorio.docx\", \"relatorio (1).docx\" e \"relatorio final.docx\", e ninguém sabe qual é o mais recente. Qual prática evita essa confusão?",
+      "options": [
+        "Salvar tudo na área de trabalho",
+        "Usar nomes com data e versão, como 2026-04-12-relatorio-v2.docx, e guardar as versões antigas em uma subpasta",
+        "Apagar todos e começar de novo",
+        "Usar apenas letras maiúsculas nos nomes"
+      ],
+      "correct": 1,
+      "explanation": "Data e número de versão no nome deixam claro qual arquivo é o atual. Uma subpasta \"versões antigas\" mantém o histórico sem bagunçar.",
+      "difficulty": "difícil"
+    },
+    {
+      "statement": "Ao baixar um arquivo chamado \"foto.jpg.exe\", por que é preciso cuidado?",
+      "options": [
+        "A extensão real é .exe: é um programa que pode executar ações no computador",
+        "É uma imagem comum e pode ser aberta sem risco",
+        "É uma planilha com macros",
+        "É um arquivo compactado e sempre seguro"
+      ],
+      "correct": 0,
+      "explanation": "Vale a última extensão. Golpes usam nomes como \"foto.jpg.exe\" para disfarçar programas maliciosos de imagem.",
+      "difficulty": "difícil"
+    },
+    {
+      "statement": "Qual é a ordem correta para começar a usar um banco de dados novo?",
+      "options": [
+        "Consultar os dados, inserir os registros e por fim criar a tabela",
+        "Inserir os registros, criar a tabela e consultar",
+        "Criar a tabela com seus campos, inserir os registros e então consultar",
+        "Criar a consulta e depois a tabela, sem registros"
+      ],
+      "correct": 2,
+      "explanation": "Primeiro se define a estrutura (tabela e campos, com a chave primária). Depois entram os registros e, por fim, as consultas.",
+      "difficulty": "difícil"
+    }
+  ]
+}
